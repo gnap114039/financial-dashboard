@@ -1,16 +1,19 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
+import csv
+import io
 import httpx
 from datetime import datetime
 from pathlib import Path
+from typing import Dict
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET"],
+    allow_methods=["GET", "PATCH"],
     allow_headers=["*"],
 )
 
@@ -40,12 +43,6 @@ async def _fetch_sheet(url: str) -> str:
     return resp.text
 
 
-def _snapshot_response(data_dir: Path, prefix: str, force: bool, sheet_url: str):
-    date_str = datetime.now().strftime("%Y-%m-%d")
-    snapshot = data_dir / f"{prefix}_{date_str}.csv"
-    return date_str, snapshot
-
-
 @app.get("/api/stock/refresh", response_class=PlainTextResponse)
 async def refresh_stock(force: bool = False):
     """回傳股票 CSV。今日快照存在時直接回傳；否則從 Google Sheets 抓取並存檔。"""
@@ -66,6 +63,35 @@ async def refresh_stock(force: bool = False):
         csv_content,
         headers={"X-Data-Source": "fresh", "X-Snapshot-Date": date_str},
     )
+
+
+@app.patch("/api/stock/snapshot")
+async def patch_stock_snapshot(prices: Dict[str, float] = Body(...)):
+    """Finnhub 取得的即時股價寫回今日快照，只更新 Current Price 為 '-' 的列。"""
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    snapshot = STOCK_DIR / f"stock_{date_str}.csv"
+    if not snapshot.exists():
+        raise HTTPException(status_code=404, detail="今日快照不存在")
+
+    content = snapshot.read_text(encoding="utf-8")
+    reader = csv.DictReader(io.StringIO(content))
+    rows = list(reader)
+    fieldnames = list(reader.fieldnames)
+
+    updated = 0
+    for row in rows:
+        ticker = row.get("Ticker", "")
+        if ticker in prices and row.get("Current Price", "").strip() == "-":
+            row["Current Price"] = str(round(prices[ticker], 4))
+            updated += 1
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    writer.writerows(rows)
+    snapshot.write_text(output.getvalue(), encoding="utf-8")
+
+    return {"updated": updated}
 
 
 @app.get("/api/stock/history")

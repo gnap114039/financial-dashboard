@@ -31,11 +31,14 @@ FastAPI（Docker）
 ## 資料夾結構
 
 ```
-financial/
+financial_dashboard/
 ├── CLAUDE.md
 ├── SPEC.md
 ├── .gitignore
 ├── docker-compose.yml
+├── .github/
+│   └── workflows/
+│       └── deploy.yml        → GitHub Pages 自動部署
 ├── api/
 │   ├── Dockerfile
 │   ├── requirements.txt
@@ -43,10 +46,9 @@ financial/
 └── src/
     ├── index.html             → 前端主頁面
     ├── bank_cash.csv          → 已棄用（改用 Google Sheets）
-    ├── stock.csv              → 已棄用（改用 Google Sheets）
-    └── data/
-        ├── bank/              → bank_YYYY-MM-DD.csv 快照
-        └── stock/             → stock_YYYY-MM-DD.csv 快照
+    └── data/                  → 每日快照（已加入 .gitignore，不納入版控）
+        ├── bank/              → bank_YYYY-MM-DD.csv
+        └── stock/             → stock_YYYY-MM-DD.csv
 ```
 
 ---
@@ -85,6 +87,7 @@ VS Code Live Preview 開啟 `src/index.html`，或直接用瀏覽器開啟。
 | GET | `/api/stock/refresh` | 回傳股票 CSV，今日快照存在則用快照 |
 | GET | `/api/stock/refresh?force=true` | 強制重新抓取 Google Sheets |
 | GET | `/api/stock/history` | 列出所有股票快照檔名 |
+| PATCH | `/api/stock/snapshot` | 將 Finnhub 即時股價回寫今日快照（僅更新 `-` 的列） |
 | GET | `/api/bank/refresh` | 回傳銀行 CSV，今日快照存在則用快照 |
 | GET | `/api/bank/refresh?force=true` | 強制重新抓取 Google Sheets |
 | GET | `/api/bank/history` | 列出所有銀行快照檔名 |
@@ -112,11 +115,14 @@ Response header `X-Data-Source: cache | fresh` 標示資料來源。
 - [x] 銀行現金 Accordion（三層：總覽 → 各銀行 → 幣別）
 - [x] 股票 Accordion（持倉中 / 券商現金 / 已清倉）
 - [x] Finnhub 即時股價 + 手動填價格備援（`Current Price` 欄位）
+- [x] Finnhub 抓到的股價自動回寫今日快照（本機限定，不覆蓋手動填價）
 - [x] 退休預測明細（可編輯四個參數）
 - [x] 投資報酬明細（利息、資本利得、總收益）
 - [x] Google Sheets 資料來源
 - [x] FastAPI 每日快照機制
 - [x] 本機 / GitHub Pages 環境自動切換
+- [x] GitHub Pages 密碼保護（SHA-256 hash 驗證，sessionStorage 記住登入狀態）
+- [x] GitHub Actions 自動部署至 GitHub Pages
 
 ## 待開發
 

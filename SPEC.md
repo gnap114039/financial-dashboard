@@ -59,7 +59,9 @@
 - `src/data/stock/stock_YYYY-MM-DD.csv`
 - `src/data/bank/bank_YYYY-MM-DD.csv`
 
-同一天多次重新整理只覆蓋當日快照，不重複下載。快照資料納入 Git 版本控制作為備份。
+同一天多次重新整理只覆蓋當日快照，不重複下載。快照資料已加入 `.gitignore`，不納入 Git 版本控制（僅存於本機）。
+
+前端渲染時，透過 Finnhub 取得的即時股價會自動回寫今日快照的 `Current Price` 欄位（僅更新值為 `-` 的列，不覆蓋手動填寫的價格）。同日後續刷新直接從快照讀取，無需重複呼叫 Finnhub API。
 
 ---
 
@@ -104,6 +106,7 @@
 | 前端技術 | 靜態 HTML + CSS + JavaScript |
 | 後端技術 | FastAPI（Python）+ Docker |
 | 幣別切換 | 動態偵測 CSV 幣別欄位，使用 open.er-api.com 匯率 |
+| 部署 | GitHub Actions → GitHub Pages，密碼保護（SHA-256 hash） |
 
 ---
 

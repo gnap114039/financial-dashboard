@@ -828,8 +828,9 @@
       const openRows   = rows.filter(r => r['Ticker'].toLowerCase() !== 'cash' && parseFloat(r['Total Share']) > 0);
       const closedRows = rows.filter(r => r['Ticker'].toLowerCase() !== 'cash' && parseFloat(r['Total Share']) === 0);
 
-      let grandTotal  = 0;
-      let fetchErrors = 0;
+      let grandTotal    = 0;
+      let fetchErrors   = 0;
+      const finnhubPrices = {};
 
       // ── 持倉中 ──
       for (const row of openRows) {
@@ -849,7 +850,8 @@
         } else {
           try {
             priceUSD = await fetchStockPrice(ticker);
-            if (!priceUSD) throw new Error('no price');
+            if (priceUSD == null || priceUSD === 0) throw new Error('no price');
+            finnhubPrices[ticker] = priceUSD;
             marketValueUSD = shares * priceUSD;
             pnlUSD         = marketValueUSD - totalCost;
             pnlPct         = totalCost !== 0 ? (pnlUSD / Math.abs(totalCost) * 100) : 0;
@@ -895,6 +897,15 @@
             <div class="stock-detail-row"><span class="dl">市值（TWD）</span><span class="dr">${fmt(twdValue)}</span></div>
           </div>`;
         stockList.appendChild(el);
+      }
+
+      // 將 Finnhub 抓到的股價寫回今日快照（僅本機）
+      if (IS_LOCAL && Object.keys(finnhubPrices).length > 0) {
+        fetch('http://localhost:8000/api/stock/snapshot', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(finnhubPrices),
+        }).catch(() => {});
       }
 
       // ── 券商現金 ──
