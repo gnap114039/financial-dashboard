@@ -123,6 +123,7 @@ Response header `X-Data-Source: cache | fresh` 標示資料來源。
 - [x] 本機 / GitHub Pages 環境自動切換
 - [x] GitHub Pages 密碼保護（SHA-256 hash 驗證，sessionStorage 記住登入狀態）
 - [x] GitHub Actions 自動部署至 GitHub Pages
+- [x] 股票 / ETF 四種視圖切換（清單 / 配置 / 比較 / 圓餅），配置視圖支援 hover 高光互動
 
 ## 待開發
 

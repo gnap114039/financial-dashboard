@@ -195,6 +195,45 @@
     .stock-detail-row .dl { color: #64748b; }
     .stock-detail-row .dr { color: #94a3b8; font-weight: 500; }
 
+    /* ── 視圖切換 tabs ── */
+    .view-tabs { display: flex; padding: 0.5rem 1.5rem 0; border-bottom: 1px solid #1a2535; }
+    .view-tab { background: none; border: none; border-bottom: 2px solid transparent; color: #64748b; font-size: 0.78rem; font-weight: 600; font-family: inherit; padding: 0.4rem 0.85rem; cursor: pointer; transition: color 0.15s, border-color 0.15s; margin-bottom: -1px; }
+    .view-tab:hover { color: #94a3b8; }
+    .view-tab:focus { outline: none; }
+    .view-tab.active { color: #60a5fa; border-bottom-color: #60a5fa; }
+
+    /* ── Strip view ── */
+    .strip-container { padding: 1.25rem 1.5rem; }
+    .strip-bar { display: flex; height: 44px; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
+    .strip-segment { display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: default; transition: filter 0.15s, opacity 0.15s; }
+    .strip-segment.dimmed { opacity: 0.25; }
+    .strip-segment.hovered { filter: brightness(1.25); }
+    .strip-legend-item { transition: opacity 0.15s; cursor: default; }
+    .strip-legend-item.dimmed { opacity: 0.25; }
+    .strip-segment span { font-size: 0.7rem; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 0.35rem; }
+    .strip-legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1.25rem; }
+    .strip-legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; }
+    .strip-legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+    /* ── Bar view ── */
+    .bar-container { padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 0.6rem; }
+    .bar-row { display: flex; align-items: center; gap: 0.75rem; }
+    .bar-ticker { font-size: 0.78rem; font-weight: 700; color: #e2e8f0; min-width: 52px; text-align: right; }
+    .bar-track { flex: 1; height: 26px; background: #1a2535; border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 0.5rem; min-width: 4px; }
+    .bar-fill span { font-size: 0.7rem; color: rgba(255,255,255,0.85); white-space: nowrap; }
+    .bar-pnl { font-size: 0.72rem; min-width: 100px; text-align: right; }
+
+    /* ── Donut view ── */
+    .donut-container { padding: 1.25rem 1.5rem; display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; }
+    .donut-canvas-wrap { width: 200px; height: 200px; flex-shrink: 0; }
+    .donut-legend { display: flex; flex-direction: column; gap: 0.45rem; padding-top: 0.25rem; }
+    .donut-legend-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; }
+    .donut-legend-dot { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+    .donut-legend-name { color: #e2e8f0; font-weight: 600; min-width: 48px; }
+    .donut-legend-pct { color: #64748b; min-width: 40px; }
+    .donut-legend-val { color: #94a3b8; }
+
     /* ── 退休預測 ── */
     .forecast-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.5rem; }
 
@@ -294,6 +333,7 @@
     #authSubmit:hover { background: #2563eb; }
     #authError { font-size: 0.8rem; color: #f87171; margin-top: 0.75rem; min-height: 1rem; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -400,6 +440,12 @@
         </span>
       </div>
       <div class="acc-body">
+        <div class="view-tabs" id="stockViewTabs">
+          <button class="view-tab active" onclick="switchStockView('list')">清單</button>
+          <button class="view-tab" onclick="switchStockView('strip')">配置</button>
+          <button class="view-tab" onclick="switchStockView('bar')">比較</button>
+          <button class="view-tab" onclick="switchStockView('donut')">圓餅</button>
+        </div>
         <div class="stock-list" id="stockList"></div>
       </div>
     </div>
@@ -814,32 +860,278 @@
       return data.c ?? null;
     }
 
+    const STOCK_COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#f97316','#84cc16','#ec4899','#14b8a6'];
+    let stockViewData   = null;
+    let currentStockView = 'list';
+    let stockDonutChart  = null;
+
+    function switchStockView(view) {
+      currentStockView = view;
+      document.querySelectorAll('#stockViewTabs .view-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent === { list: '清單', strip: '配置', bar: '比較', donut: '圓餅' }[view]);
+      });
+      renderStockView(view);
+    }
+
+    function renderStockView(view) {
+      if (!stockViewData) return;
+      if (view === 'list')  renderListView(stockViewData);
+      if (view === 'strip') renderStripView(stockViewData);
+      if (view === 'bar')   renderBarView(stockViewData);
+      if (view === 'donut') renderDonutView(stockViewData);
+    }
+
+    function renderListView(data) {
+      if (stockDonutChart) { stockDonutChart.destroy(); stockDonutChart = null; }
+      const stockList = document.getElementById('stockList');
+      stockList.innerHTML = '';
+      const { openStocks, cash, closedItems, totalRealizedUSD, usdToTWD } = data;
+
+      for (const s of openStocks) {
+        const pnlColor  = s.pnlUSD === null ? '' : s.pnlUSD >= 0 ? 'green' : 'red';
+        const pnlText   = s.pnlUSD === null ? ''
+          : `${s.pnlUSD >= 0 ? '+' : ''}${fmtUSD(s.pnlUSD)} (${s.pnlUSD >= 0 ? '+' : ''}${s.pnlPct.toFixed(2)}%)`;
+        const priceLabel = s.priceUSD
+          ? `${fmtUSD(s.priceUSD)} <span style="font-size:0.7rem;color:#64748b">${s.priceSource}</span>`
+          : '—';
+        const el = document.createElement('div');
+        el.className = 'stock-item';
+        el.innerHTML = `
+          <div class="stock-header" onclick="toggleStock(this)">
+            <span class="stock-left">
+              <span class="stock-ticker">${s.ticker}</span>
+              <span class="stock-shares">${fmtShares(s.shares)} 股</span>
+            </span>
+            <span class="stock-right">
+              <span class="stock-twd">${fmt(s.twdValue)}</span>
+              <span class="stock-pnl ${pnlColor}">${pnlText}</span>
+              <span class="stock-arrow">▼</span>
+            </span>
+          </div>
+          <div class="stock-body">
+            <div class="stock-detail-row"><span class="dl">持股數量</span><span class="dr">${fmtShares(s.shares)} 股</span></div>
+            <div class="stock-detail-row"><span class="dl">股價</span><span class="dr">${priceLabel}</span></div>
+            <div class="stock-detail-row"><span class="dl">市值（USD）</span><span class="dr">${fmtUSD(s.marketValueUSD)}</span></div>
+            <div class="stock-detail-row"><span class="dl">持倉成本（USD）</span><span class="dr">${fmtUSD(s.totalCost)}</span></div>
+            <div class="stock-detail-row"><span class="dl">未實現損益</span><span class="dr ${pnlColor}">${pnlText || '—'}</span></div>
+            <div class="stock-detail-row"><span class="dl">USD → TWD 匯率</span><span class="dr">${usdToTWD.toFixed(4)}</span></div>
+            <div class="stock-detail-row"><span class="dl">市值（TWD）</span><span class="dr">${fmt(s.twdValue)}</span></div>
+          </div>`;
+        stockList.appendChild(el);
+      }
+
+      if (cash) {
+        const el = document.createElement('div');
+        el.className = 'stock-item';
+        el.innerHTML = `
+          <div class="stock-header" onclick="toggleStock(this)">
+            <span class="stock-left">
+              <span class="stock-ticker">現金</span>
+              <span class="stock-shares">USD 現金</span>
+            </span>
+            <span class="stock-right">
+              <span class="stock-twd">${fmt(cash.twdValue)}</span>
+              <span class="stock-pnl"></span>
+              <span class="stock-arrow">▼</span>
+            </span>
+          </div>
+          <div class="stock-body">
+            <div class="stock-detail-row"><span class="dl">帳戶現金（USD）</span><span class="dr">${fmtUSD(cash.totalCostUSD)}</span></div>
+            <div class="stock-detail-row"><span class="dl">USD → TWD 匯率</span><span class="dr">${usdToTWD.toFixed(4)}</span></div>
+            <div class="stock-detail-row"><span class="dl">換算台幣</span><span class="dr">${fmt(cash.twdValue)}</span></div>
+          </div>`;
+        stockList.appendChild(el);
+      }
+
+      if (closedItems.length > 0) {
+        const totalRealizedTWD = totalRealizedUSD * usdToTWD;
+        const grpColor = totalRealizedUSD >= 0 ? 'green' : 'red';
+        const grpSign  = totalRealizedUSD >= 0 ? '+' : '';
+        const subRows  = closedItems.map(({ ticker, realizedUSD }) => {
+          const twdVal = realizedUSD * usdToTWD;
+          const color  = realizedUSD >= 0 ? 'green' : 'red';
+          const sign   = realizedUSD >= 0 ? '+' : '';
+          return `<div class="stock-detail-row">
+            <span class="dl">${ticker}</span>
+            <span class="dr ${color}">${sign}${fmtUSD(realizedUSD)} （${sign}${fmt(twdVal)}）</span>
+          </div>`;
+        }).join('');
+        const el = document.createElement('div');
+        el.className = 'stock-item';
+        el.innerHTML = `
+          <div class="stock-header" onclick="toggleStock(this)">
+            <span class="stock-left">
+              <span class="stock-ticker">已清倉</span>
+              <span class="stock-shares">${closedItems.length} 檔</span>
+            </span>
+            <span class="stock-right">
+              <span class="stock-twd"></span>
+              <span class="stock-pnl ${grpColor}">${grpSign}${fmtUSD(totalRealizedUSD)} （${grpSign}${fmt(totalRealizedTWD)}）</span>
+              <span class="stock-arrow">▼</span>
+            </span>
+          </div>
+          <div class="stock-body">${subRows}</div>`;
+        stockList.appendChild(el);
+      }
+    }
+
+    function renderStripView(data) {
+      if (stockDonutChart) { stockDonutChart.destroy(); stockDonutChart = null; }
+      const { openStocks, cash } = data;
+      const items = openStocks.map(s => ({ label: s.ticker, value: s.twdValue, color: s.color }));
+      if (cash && cash.twdValue > 0) items.push({ label: '現金', value: cash.twdValue, color: '#475569' });
+
+      const total = items.reduce((s, i) => s + i.value, 0);
+      const segments = items.map(item => {
+        const pct = total > 0 ? (item.value / total * 100) : 0;
+        return `<div class="strip-segment" data-ticker="${item.label}" style="width:${pct.toFixed(2)}%;background:${item.color}">
+          <span>${pct >= 5 ? item.label : ''}</span>
+        </div>`;
+      }).join('');
+      const legend = items.map(item => {
+        const pct = total > 0 ? (item.value / total * 100).toFixed(1) : '0.0';
+        return `<div class="strip-legend-item" data-ticker="${item.label}">
+          <div class="strip-legend-dot" style="background:${item.color}"></div>
+          <span style="color:#e2e8f0;font-weight:600">${item.label}</span>
+          <span style="color:#64748b">${pct}%</span>
+          <span style="color:#94a3b8">${fmt(item.value)}</span>
+        </div>`;
+      }).join('');
+
+      const stockList = document.getElementById('stockList');
+      stockList.innerHTML = `
+        <div class="strip-container">
+          <div class="strip-bar">${segments}</div>
+          <div class="strip-legend">${legend}</div>
+        </div>`;
+
+      function applyStripHover(ticker) {
+        stockList.querySelectorAll('.strip-segment').forEach(el => {
+          el.classList.toggle('hovered', el.dataset.ticker === ticker);
+          el.classList.toggle('dimmed',  el.dataset.ticker !== ticker);
+        });
+        stockList.querySelectorAll('.strip-legend-item').forEach(el => {
+          el.classList.toggle('dimmed', el.dataset.ticker !== ticker);
+        });
+      }
+      function clearStripHover() {
+        stockList.querySelectorAll('.strip-segment, .strip-legend-item').forEach(el => {
+          el.classList.remove('hovered', 'dimmed');
+        });
+      }
+
+      stockList.querySelectorAll('.strip-segment, .strip-legend-item').forEach(el => {
+        el.addEventListener('mouseenter', () => applyStripHover(el.dataset.ticker));
+        el.addEventListener('mouseleave', clearStripHover);
+      });
+    }
+
+    function renderBarView(data) {
+      if (stockDonutChart) { stockDonutChart.destroy(); stockDonutChart = null; }
+      const { openStocks } = data;
+      const sorted = [...openStocks].sort((a, b) => b.twdValue - a.twdValue);
+      const maxVal = sorted[0]?.twdValue || 1;
+
+      const bars = sorted.map(s => {
+        const pct      = (s.twdValue / maxVal * 100).toFixed(1);
+        const barColor = s.pnlUSD === null ? s.color : s.pnlUSD >= 0 ? '#10b981' : '#ef4444';
+        const pnlColor = s.pnlUSD === null ? '' : s.pnlUSD >= 0 ? 'green' : 'red';
+        const pnlText  = s.pnlUSD === null ? '—'
+          : `${s.pnlUSD >= 0 ? '+' : ''}${s.pnlPct.toFixed(2)}%`;
+        return `<div class="bar-row">
+          <span class="bar-ticker">${s.ticker}</span>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:${pct}%;background:${barColor}">
+              <span>${fmt(s.twdValue)}</span>
+            </div>
+          </div>
+          <span class="bar-pnl ${pnlColor}">${pnlText}</span>
+        </div>`;
+      }).join('');
+
+      document.getElementById('stockList').innerHTML = `<div class="bar-container">${bars}</div>`;
+    }
+
+    function renderDonutView(data) {
+      if (stockDonutChart) { stockDonutChart.destroy(); stockDonutChart = null; }
+      const { openStocks, cash } = data;
+      const items = openStocks.map(s => ({ label: s.ticker, value: s.twdValue, color: s.color, pnlPct: s.pnlPct }));
+      if (cash && cash.twdValue > 0) items.push({ label: '現金', value: cash.twdValue, color: '#475569', pnlPct: null });
+
+      const total = items.reduce((s, i) => s + i.value, 0);
+      const legendHtml = items.map(item => {
+        const pct     = total > 0 ? (item.value / total * 100).toFixed(1) : '0.0';
+        const pnlSpan = item.pnlPct != null
+          ? `<span style="margin-left:0.4rem;color:${item.pnlPct >= 0 ? '#10b981' : '#ef4444'}">${item.pnlPct >= 0 ? '+' : ''}${item.pnlPct.toFixed(1)}%</span>`
+          : '';
+        return `<div class="donut-legend-item">
+          <div class="donut-legend-dot" style="background:${item.color}"></div>
+          <span class="donut-legend-name">${item.label}</span>
+          <span class="donut-legend-pct">${pct}%</span>
+          <span class="donut-legend-val">${fmt(item.value)}${pnlSpan}</span>
+        </div>`;
+      }).join('');
+
+      document.getElementById('stockList').innerHTML = `
+        <div class="donut-container">
+          <div class="donut-canvas-wrap"><canvas id="donutCanvas"></canvas></div>
+          <div class="donut-legend">${legendHtml}</div>
+        </div>`;
+
+      if (typeof Chart === 'undefined') {
+        document.querySelector('.donut-canvas-wrap').innerHTML =
+          '<p style="color:#64748b;font-size:0.82rem;padding:1rem">需要網路連線載入圖表</p>';
+        return;
+      }
+
+      stockDonutChart = new Chart(document.getElementById('donutCanvas'), {
+        type: 'doughnut',
+        data: {
+          labels: items.map(i => i.label),
+          datasets: [{
+            data: items.map(i => i.value),
+            backgroundColor: items.map(i => i.color),
+            borderColor: '#0f172a',
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          cutout: '65%',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: ctx => ` ${fmt(ctx.raw)}（${(ctx.raw / total * 100).toFixed(1)}%）`
+              }
+            }
+          }
+        }
+      });
+    }
+
     async function renderStockAccordion(rows, dataSource = 'fresh', snapshotDate = '') {
       setStatus('stockStatus', '正在抓取即時股價與匯率…', '');
 
       const ok = await ensureFxRates(['USD']);
       if (!ok) { setStatus('stockStatus', '匯率抓取失敗', 'err'); return; }
 
-      const usdToTWD  = fxRates['USD'] || 0;
-      const stockList = document.getElementById('stockList');
-      stockList.innerHTML = '';
-
+      const usdToTWD   = fxRates['USD'] || 0;
       const cashRow    = rows.find(r => r['Ticker'].toLowerCase() === 'cash');
       const openRows   = rows.filter(r => r['Ticker'].toLowerCase() !== 'cash' && parseFloat(r['Total Share']) > 0);
       const closedRows = rows.filter(r => r['Ticker'].toLowerCase() !== 'cash' && parseFloat(r['Total Share']) === 0);
 
-      let grandTotal    = 0;
-      let fetchErrors   = 0;
+      let grandTotal      = 0;
+      let fetchErrors     = 0;
       const finnhubPrices = {};
+      const openStocks    = [];
 
-      // ── 持倉中 ──
       for (const row of openRows) {
-        const ticker    = row['Ticker'];
-        const shares    = parseFloat(row['Total Share']);
-        const totalCost = parseAmount(row['Total Price']);
+        const ticker      = row['Ticker'];
+        const shares      = parseFloat(row['Total Share']);
+        const totalCost   = parseAmount(row['Total Price']);
+        const manualPrice = row['Current Price']?.trim();
 
         let marketValueUSD, priceUSD, pnlUSD, pnlPct, priceSource;
-        const manualPrice = row['Current Price']?.trim();
 
         if (manualPrice && manualPrice !== '-') {
           priceUSD       = parseFloat(manualPrice);
@@ -865,38 +1157,7 @@
 
         const twdValue = marketValueUSD * usdToTWD;
         grandTotal += twdValue;
-
-        const pnlColor  = pnlUSD === null ? '' : pnlUSD >= 0 ? 'green' : 'red';
-        const pnlText   = pnlUSD === null ? ''
-          : `${pnlUSD >= 0 ? '+' : ''}${fmtUSD(pnlUSD)} (${pnlUSD >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%)`;
-        const priceLabel = priceUSD
-          ? `${fmtUSD(priceUSD)} <span style="font-size:0.7rem;color:#64748b">${priceSource}</span>`
-          : '—';
-
-        const el = document.createElement('div');
-        el.className = 'stock-item';
-        el.innerHTML = `
-          <div class="stock-header" onclick="toggleStock(this)">
-            <span class="stock-left">
-              <span class="stock-ticker">${ticker}</span>
-              <span class="stock-shares">${fmtShares(shares)} 股</span>
-            </span>
-            <span class="stock-right">
-              <span class="stock-twd">${fmt(twdValue)}</span>
-              <span class="stock-pnl ${pnlColor}">${pnlText}</span>
-              <span class="stock-arrow">▼</span>
-            </span>
-          </div>
-          <div class="stock-body">
-            <div class="stock-detail-row"><span class="dl">持股數量</span><span class="dr">${fmtShares(shares)} 股</span></div>
-            <div class="stock-detail-row"><span class="dl">股價</span><span class="dr">${priceLabel}</span></div>
-            <div class="stock-detail-row"><span class="dl">市值（USD）</span><span class="dr">${fmtUSD(marketValueUSD)}</span></div>
-            <div class="stock-detail-row"><span class="dl">持倉成本（USD）</span><span class="dr">${fmtUSD(totalCost)}</span></div>
-            <div class="stock-detail-row"><span class="dl">未實現損益</span><span class="dr ${pnlColor}">${pnlText || '—'}</span></div>
-            <div class="stock-detail-row"><span class="dl">USD → TWD 匯率</span><span class="dr">${usdToTWD.toFixed(4)}</span></div>
-            <div class="stock-detail-row"><span class="dl">市值（TWD）</span><span class="dr">${fmt(twdValue)}</span></div>
-          </div>`;
-        stockList.appendChild(el);
+        openStocks.push({ ticker, shares, priceUSD, priceSource, marketValueUSD, twdValue, totalCost, pnlUSD, pnlPct, color: STOCK_COLORS[openStocks.length % STOCK_COLORS.length] });
       }
 
       // 將 Finnhub 抓到的股價寫回今日快照（僅本機）
@@ -908,87 +1169,34 @@
         }).catch(() => {});
       }
 
-      // ── 券商現金 ──
+      let cash = null;
       if (cashRow) {
-        const totalCost = parseAmount(cashRow['Total Price']);
-        const twdValue  = totalCost * usdToTWD;
+        const totalCostUSD = parseAmount(cashRow['Total Price']);
+        const twdValue     = totalCostUSD * usdToTWD;
         grandTotal += twdValue;
-
-        const el = document.createElement('div');
-        el.className = 'stock-item';
-        el.innerHTML = `
-          <div class="stock-header" onclick="toggleStock(this)">
-            <span class="stock-left">
-              <span class="stock-ticker">現金</span>
-              <span class="stock-shares">USD 現金</span>
-            </span>
-            <span class="stock-right">
-              <span class="stock-twd">${fmt(twdValue)}</span>
-              <span class="stock-pnl"></span>
-              <span class="stock-arrow">▼</span>
-            </span>
-          </div>
-          <div class="stock-body">
-            <div class="stock-detail-row"><span class="dl">帳戶現金（USD）</span><span class="dr">${fmtUSD(totalCost)}</span></div>
-            <div class="stock-detail-row"><span class="dl">USD → TWD 匯率</span><span class="dr">${usdToTWD.toFixed(4)}</span></div>
-            <div class="stock-detail-row"><span class="dl">換算台幣</span><span class="dr">${fmt(twdValue)}</span></div>
-          </div>`;
-        stockList.appendChild(el);
+        cash = { totalCostUSD, twdValue };
       }
 
-      // ── 已清倉 ──
-      if (closedRows.length > 0) {
-        let totalRealizedUSD = 0;
-        const closedItems = closedRows.map(row => {
-          const ticker      = row['Ticker'];
-          const totalCost   = parseAmount(row['Total Price']);
-          const realizedUSD = -totalCost;
-          totalRealizedUSD += realizedUSD;
-          return { ticker, realizedUSD };
-        });
+      let totalRealizedUSD = 0;
+      const closedItems = closedRows.map(row => {
+        const totalCost   = parseAmount(row['Total Price']);
+        const realizedUSD = -totalCost;
+        totalRealizedUSD += realizedUSD;
+        return { ticker: row['Ticker'], realizedUSD };
+      });
 
-        const totalRealizedTWD = totalRealizedUSD * usdToTWD;
-        const grpColor = totalRealizedUSD >= 0 ? 'green' : 'red';
-        const grpSign  = totalRealizedUSD >= 0 ? '+' : '';
-
-        const subRows = closedItems.map(({ ticker, realizedUSD }) => {
-          const twdVal = realizedUSD * usdToTWD;
-          const color  = realizedUSD >= 0 ? 'green' : 'red';
-          const sign   = realizedUSD >= 0 ? '+' : '';
-          return `
-            <div class="stock-detail-row">
-              <span class="dl">${ticker}</span>
-              <span class="dr ${color}">${sign}${fmtUSD(realizedUSD)} （${sign}${fmt(twdVal)}）</span>
-            </div>`;
-        }).join('');
-
-        const el = document.createElement('div');
-        el.className = 'stock-item';
-        el.innerHTML = `
-          <div class="stock-header" onclick="toggleStock(this)">
-            <span class="stock-left">
-              <span class="stock-ticker">已清倉</span>
-              <span class="stock-shares">${closedRows.length} 檔</span>
-            </span>
-            <span class="stock-right">
-              <span class="stock-twd"></span>
-              <span class="stock-pnl ${grpColor}">${grpSign}${fmtUSD(totalRealizedUSD)} （${grpSign}${fmt(totalRealizedTWD)}）</span>
-              <span class="stock-arrow">▼</span>
-            </span>
-          </div>
-          <div class="stock-body">${subRows}</div>`;
-        stockList.appendChild(el);
-      }
+      stockViewData    = { openStocks, cash, closedItems, totalRealizedUSD, grandTotal, usdToTWD, fetchErrors };
+      currentStockView = 'list';
+      document.querySelectorAll('#stockViewTabs .view-tab').forEach((btn, i) => btn.classList.toggle('active', i === 0));
 
       // Σ所有 Total Price（含 cash row、含已清倉）→ 投入本金分母
-      stockCostTWD = rows.reduce((sum, row) => {
-        return sum + parseAmount(row['Total Price']) * usdToTWD;
-      }, 0);
+      stockCostTWD = rows.reduce((sum, row) => sum + parseAmount(row['Total Price']) * usdToTWD, 0);
 
       stockTWD = grandTotal;
       document.getElementById('accStockTotal').textContent = fmt(grandTotal);
       document.getElementById('stockAccItem').style.display = '';
       renderInvestmentReturn();
+      renderListView(stockViewData);
 
       const usdRate   = usdToTWD.toFixed(2);
       const sourceTag = dataSource === 'cache' ? `使用今日快照 · ${snapshotDate}` : `已從 Google Sheets 更新 · ${snapshotDate}`;

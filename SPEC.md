@@ -77,7 +77,11 @@
 
 ### 4.2 資產配置區塊 ✓
 - 銀行現金：三層 Accordion（總覽 → 各銀行 → 幣別明細）
-- 股票 / ETF：兩層 Accordion（持倉中 / 券商現金 / 已清倉）
+- 股票 / ETF：Accordion 展開後可切換四種視圖
+  - **清單**：各持倉明細（持倉中 / 券商現金 / 已清倉）
+  - **配置**：比例色條，hover 高光對應項目
+  - **比較**：橫向 bar chart，依市值排序，顏色反映損益
+  - **圓餅**：Donut chart（Chart.js），含各持倉比例與損益
 
 ### 4.3 投資報酬明細 ✓
 - 實際投入本金（USD 手動輸入）
@@ -107,6 +111,7 @@
 | 後端技術 | FastAPI（Python）+ Docker |
 | 幣別切換 | 動態偵測 CSV 幣別欄位，使用 open.er-api.com 匯率 |
 | 部署 | GitHub Actions → GitHub Pages，密碼保護（SHA-256 hash） |
+| 圖表 | Chart.js（CDN），用於股票圓餅視圖 |
 
 ---
 
