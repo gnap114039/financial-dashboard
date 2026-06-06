@@ -457,7 +457,7 @@
   <div class="forecast-card">
     <div class="forecast-row">
       <span class="fl">實際投入本金（USD）</span>
-      <span class="fr"><input class="forecast-input" id="inputActualPrincipal" value="140000" oninput="renderInvestmentReturn()"> USD</span>
+      <span class="fr"><input class="forecast-input" id="inputActualPrincipal" value="0" readonly style="opacity:0.6;cursor:default"> USD</span>
     </div>
     <div class="forecast-row"><span class="fl">實際投入本金（TWD）</span><span class="fr"><span id="actualPrincipalTWD">—</span></span></div>
     <div class="forecast-row"><span class="fl">計算投入本金（TWD）</span><span class="fr"><span id="calcPrincipalTWD">—</span></span></div>
@@ -1116,9 +1116,11 @@
       if (!ok) { setStatus('stockStatus', '匯率抓取失敗', 'err'); return; }
 
       const usdToTWD   = fxRates['USD'] || 0;
-      const cashRow    = rows.find(r => r['Ticker'].toLowerCase() === 'cash');
-      const openRows   = rows.filter(r => r['Ticker'].toLowerCase() !== 'cash' && parseFloat(r['Total Share']) > 0);
-      const closedRows = rows.filter(r => r['Ticker'].toLowerCase() !== 'cash' && parseFloat(r['Total Share']) === 0);
+      const specialTickers = ['cash', 'principal'];
+      const cashRow      = rows.find(r => r['Ticker'].toLowerCase() === 'cash');
+      const principalRow = rows.find(r => r['Ticker'].toLowerCase() === 'principal');
+      const openRows   = rows.filter(r => !specialTickers.includes(r['Ticker'].toLowerCase()) && parseFloat(r['Total Share']) > 0);
+      const closedRows = rows.filter(r => !specialTickers.includes(r['Ticker'].toLowerCase()) && parseFloat(r['Total Share']) === 0);
 
       let grandTotal      = 0;
       let fetchErrors     = 0;
@@ -1189,8 +1191,16 @@
       currentStockView = 'list';
       document.querySelectorAll('#stockViewTabs .view-tab').forEach((btn, i) => btn.classList.toggle('active', i === 0));
 
-      // Σ所有 Total Price（含 cash row、含已清倉）→ 投入本金分母
-      stockCostTWD = rows.reduce((sum, row) => sum + parseAmount(row['Total Price']) * usdToTWD, 0);
+      // Σ所有 Total Price（含 cash row、含已清倉，排除 PRINCIPAL）→ 計算投入本金分母
+      stockCostTWD = rows
+        .filter(r => r['Ticker'].toLowerCase() !== 'principal')
+        .reduce((sum, row) => sum + parseAmount(row['Total Price']) * usdToTWD, 0);
+
+      if (principalRow) {
+        const principalUSD = parseAmount(principalRow['Total Price']);
+        const input = document.getElementById('inputActualPrincipal');
+        if (input) input.value = principalUSD;
+      }
 
       stockTWD = grandTotal;
       document.getElementById('accStockTotal').textContent = fmt(grandTotal);

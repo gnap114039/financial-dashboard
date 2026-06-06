@@ -105,6 +105,7 @@ Response header `X-Data-Source: cache | fresh` 標示資料來源。
 | `Average` | 每股均價（USD） |
 | `Total Price` | 持倉成本（USD），負值代表已實現獲利 |
 | `Current Price` | 手動填入的現價（USD），`-` 表示由 Finnhub 自動取得 |
+| `PRINCIPAL` | 特殊 ticker，`Total Price` 填入歷史累積投入本金（USD），前端自動讀取，不計入持倉 |
 
 ---
 
@@ -125,6 +126,7 @@ Response header `X-Data-Source: cache | fresh` 標示資料來源。
 - [x] GitHub Actions 自動部署至 GitHub Pages
 - [x] 股票 / ETF 四種視圖切換（清單 / 配置 / 比較 / 圓餅），配置視圖支援 hover 高光互動
 - [x] Header GitHub icon 連結至專案頁面
+- [x] 實際投入本金自動從 Google Sheets PRINCIPAL row 讀取（唯讀，不再手動輸入）
 
 ## 待開發
 

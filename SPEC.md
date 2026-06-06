@@ -52,6 +52,8 @@
 
 **`Current Price` 欄位說明：** 供無法透過 Finnhub API 取得報價的持倉手動填入（如 LSE 掛牌的 IB01），其餘填 `-` 由 API 自動取得。
 
+**`PRINCIPAL` 特殊列：** `Ticker` 填 `PRINCIPAL`，`Total Price` 填入歷史累積實際投入本金（USD）。前端自動讀取並顯示，不計入持倉計算。
+
 ### 3.5 資料快照機制
 
 本機開發環境（localhost）透過 FastAPI 後端每日自動存一份快照：
