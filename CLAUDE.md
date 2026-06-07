@@ -48,7 +48,8 @@ financial_dashboard/
     ├── bank_cash.csv          → 已棄用（改用 Google Sheets）
     └── data/                  → 每日快照（已加入 .gitignore，不納入版控）
         ├── bank/              → bank_YYYY-MM-DD.csv
-        └── stock/             → stock_YYYY-MM-DD.csv
+        ├── stock/             → stock_YYYY-MM-DD.csv
+        └── pension/           → pension_YYYY-MM-DD.csv
 ```
 
 ---
@@ -75,8 +76,9 @@ VS Code Live Preview 開啟 `src/index.html`，或直接用瀏覽器開啟。
 |---|---|
 | 股票 | `gid=756201628` |
 | 銀行現金 | `gid=983098033` |
+| 勞工退休金 | `gid=889457991` |
 
-完整 URL 在 `api/main.py` 的 `STOCK_SHEET_URL` / `BANK_SHEET_URL`，以及 `src/index.html` 的 `STOCK_SHEET_URL` / `BANK_SHEET_URL`。
+完整 URL 在 `api/main.py` 的 `STOCK_SHEET_URL` / `BANK_SHEET_URL` / `LABOR_SHEET_URL`，以及 `src/index.html` 的對應常數。
 
 ---
 
@@ -91,6 +93,9 @@ VS Code Live Preview 開啟 `src/index.html`，或直接用瀏覽器開啟。
 | GET | `/api/bank/refresh` | 回傳銀行 CSV，今日快照存在則用快照 |
 | GET | `/api/bank/refresh?force=true` | 強制重新抓取 Google Sheets |
 | GET | `/api/bank/history` | 列出所有銀行快照檔名 |
+| GET | `/api/pension/refresh` | 回傳勞退 CSV，今日快照存在則用快照 |
+| GET | `/api/pension/refresh?force=true` | 強制重新抓取 Google Sheets |
+| GET | `/api/pension/history` | 列出所有勞退快照檔名 |
 
 Response header `X-Data-Source: cache | fresh` 標示資料來源。
 
@@ -127,6 +132,7 @@ Response header `X-Data-Source: cache | fresh` 標示資料來源。
 - [x] 股票 / ETF 四種視圖切換（清單 / 配置 / 比較 / 圓餅），配置視圖支援 hover 高光互動
 - [x] Header GitHub icon 連結至專案頁面
 - [x] 實際投入本金自動從 Google Sheets PRINCIPAL row 讀取（唯讀，不再手動輸入）
+- [x] 勞工退休金 Accordion（雇主提繳 / 個人提繳 / 累積收益，計入總資產）
 
 ## 待開發
 

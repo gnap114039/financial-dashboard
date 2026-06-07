@@ -49,6 +49,7 @@
 |---|---|
 | 股票 / ETF | `stock` 工作表，欄位：Ticker, Total Share, Average, Total Price, Current Price |
 | 銀行現金 | `bank_cash` 工作表，欄位：Bank, NTD, USD, EUR, JPY, MYR, CNY |
+| 勞工退休金 | `labor_pension` 工作表，欄位：TWD（類別名）, 累計金額（本金 TWD）, 收益累計金額（TWD） |
 
 **`Current Price` 欄位說明：** 供無法透過 Finnhub API 取得報價的持倉手動填入（如 LSE 掛牌的 IB01），其餘填 `-` 由 API 自動取得。
 
@@ -60,6 +61,7 @@
 
 - `src/data/stock/stock_YYYY-MM-DD.csv`
 - `src/data/bank/bank_YYYY-MM-DD.csv`
+- `src/data/pension/pension_YYYY-MM-DD.csv`
 
 同一天多次重新整理只覆蓋當日快照，不重複下載。快照資料已加入 `.gitignore`，不納入 Git 版本控制（僅存於本機）。
 
@@ -79,6 +81,7 @@
 
 ### 4.2 資產配置區塊 ✓
 - 銀行現金：三層 Accordion（總覽 → 各銀行 → 幣別明細）
+- 勞工退休金：Accordion 展開顯示雇主提繳 / 個人提繳（本金 + 收益），底部顯示累積收益合計與百分比，計入總資產
 - 股票 / ETF：Accordion 展開後可切換四種視圖
   - **清單**：各持倉明細（持倉中 / 券商現金 / 已清倉）
   - **配置**：比例色條，hover 高光對應項目
@@ -133,3 +136,4 @@
 | v0.1 | 2026-05-09 | 初版需求整理 |
 | v0.2 | 2026-05-24 | 更新架構：Google Sheets 輸入、FastAPI 快照後端、多幣別切換、已完成功能標記 |
 | v0.3 | 2026-05-30 | 股票四視圖切換、Finnhub 股價回寫快照、GitHub Pages 密碼保護、GitHub icon |
+| v0.4 | 2026-06-07 | 勞工退休金 Accordion（Google Sheets + localStorage 快取 + FastAPI 快照） |

@@ -411,6 +411,7 @@
   <div class="status-row">
     <div class="status-line" id="bankStatus"></div>
     <div class="status-line" id="stockStatus"></div>
+    <div class="status-line" id="laborStatus"></div>
   </div>
 
   <!-- Accordion -->
@@ -447,6 +448,20 @@
           <button class="view-tab" onclick="switchStockView('donut')">圓餅</button>
         </div>
         <div class="stock-list" id="stockList"></div>
+      </div>
+    </div>
+
+    <div class="acc-item" id="laborAccItem" style="display:none">
+      <div class="acc-header" onclick="toggleAcc(this)">
+        <span class="acc-name">勞工退休金</span>
+        <span class="acc-right">
+          <span class="acc-amount" id="accLaborTotal">—</span>
+          <span class="acc-pct" id="accLaborPct"></span>
+          <span class="acc-arrow">▼</span>
+        </span>
+      </div>
+      <div class="acc-body">
+        <div id="laborList"></div>
       </div>
     </div>
 
@@ -528,6 +543,8 @@
 
     const STOCK_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6oDlhxWgtYn3IVCV1-ewP6kMsULRuVJPXiAYLMV_dXVXRbH8VGI7LzM6wtXqXX9EJTxQgFKqb0BlF/pub?gid=756201628&single=true&output=csv';
     const BANK_SHEET_URL  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6oDlhxWgtYn3IVCV1-ewP6kMsULRuVJPXiAYLMV_dXVXRbH8VGI7LzM6wtXqXX9EJTxQgFKqb0BlF/pub?gid=983098033&single=true&output=csv';
+    const LABOR_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6oDlhxWgtYn3IVCV1-ewP6kMsULRuVJPXiAYLMV_dXVXRbH8VGI7LzM6wtXqXX9EJTxQgFKqb0BlF/pub?gid=889457991&single=true&output=csv';
+    const LABOR_CACHE_KEY = 'laborPensionCache';
 
     async function fetchStockData() {
       const today = new Date().toISOString().slice(0, 10);
@@ -551,6 +568,92 @@
       const r = await fetch(BANK_SHEET_URL);
       if (!r.ok) throw new Error('無法取得銀行資料');
       return { text: await r.text(), source: 'fresh', date: today };
+    }
+
+    async function fetchLaborData() {
+      const today = new Date().toISOString().slice(0, 10);
+      if (IS_LOCAL) {
+        const r = await fetch('http://localhost:8000/api/pension/refresh');
+        if (!r.ok) throw new Error('API 回應錯誤');
+        return { text: await r.text(), source: r.headers.get('X-Data-Source') || 'fresh', date: r.headers.get('X-Snapshot-Date') || today };
+      }
+      try {
+        const r = await fetch(LABOR_SHEET_URL);
+        if (!r.ok) throw new Error('無法取得勞退資料');
+        const text = await r.text();
+        localStorage.setItem(LABOR_CACHE_KEY, JSON.stringify({ text, date: today }));
+        return { text, source: 'fresh', date: today };
+      } catch (e) {
+        const cached = localStorage.getItem(LABOR_CACHE_KEY);
+        if (cached) {
+          const { text, date } = JSON.parse(cached);
+          return { text, source: 'cache', date };
+        }
+        throw e;
+      }
+    }
+
+    function parseLaborCSV(text) {
+      const lines   = text.trim().split('\n').filter(l => l.trim());
+      const headers = lines[0].split(',').map(h => h.trim());
+      const catKey  = headers[0];
+      return lines.slice(1).map(line => {
+        const vals = line.split(',').map(v => v.trim());
+        const obj  = {};
+        headers.forEach((h, i) => obj[h] = vals[i] || '0');
+        return obj;
+      }).filter(r => r[catKey]);
+    }
+
+    function renderLaborAccordion(rows, source, date) {
+      if (!rows.length) return;
+      const keys         = Object.keys(rows[0]);
+      const catKey       = keys[0]; // 類別（雇主提繳 / 個人提繳）
+      const principalKey = keys[1]; // 累計金額（本金）
+      const returnKey    = keys[2]; // 收益累計金額
+
+      let grandTotal     = 0;
+      let totalReturns   = 0;
+      let totalPrincipal = 0;
+      const laborList   = document.getElementById('laborList');
+      laborList.innerHTML = '';
+
+      rows.forEach(row => {
+        const principal = parseFloat(row[principalKey]) || 0;
+        const returns   = returnKey ? (parseFloat(row[returnKey]) || 0) : 0;
+        const subtotal  = principal + returns;
+        grandTotal     += subtotal;
+        totalReturns   += returns;
+        totalPrincipal += principal;
+
+        const el = document.createElement('div');
+        el.className = 'stock-detail-row';
+        el.innerHTML = `
+          <span class="dl">${row[catKey]}</span>
+          <span class="dr" style="text-align:right">
+            <div style="font-size:0.78rem;color:#64748b">${fmt(principal)} 本金 + <span class="green">+${fmt(returns)}</span> 收益</div>
+            <div>${fmt(subtotal)}</div>
+          </span>`;
+        laborList.appendChild(el);
+      });
+
+      if (returnKey) {
+        const totEl = document.createElement('div');
+        totEl.className = 'stock-detail-row';
+        totEl.style.cssText = 'border-top:1px solid #273548';
+        const returnPct = totalPrincipal ? (totalReturns / totalPrincipal * 100).toFixed(2) : '0.00';
+        totEl.innerHTML = `<span class="dl" style="color:#64748b">累積收益合計</span><span class="dr green">+${fmt(totalReturns)} (+${returnPct}%)</span>`;
+
+        laborList.appendChild(totEl);
+      }
+
+      laborTWD = grandTotal;
+      document.getElementById('accLaborTotal').textContent = fmt(grandTotal);
+      document.getElementById('laborAccItem').style.display = '';
+      const sourceTag = source === 'cache' ? `本機快取 · ${date}` : `已從 Google Sheets 更新 · ${date}`;
+      setStatus('laborStatus', sourceTag, 'ok');
+      renderOverview();
+      updateAllocationPct();
     }
 
     const CONFIG_STATIC = { currentAge: 33, targetAge: 45 };
@@ -578,6 +681,7 @@
     let bankCashTWD        = 0;
     let stockTWD           = 0;
     let stockCostTWD       = 0;
+    let laborTWD           = 0;
     let fxRates            = {};
     let displayCurrency    = 'TWD';
     let availableCurrencies = ['TWD'];
@@ -630,7 +734,7 @@
     function renderOverview() {
       const C              = getConfig();
       const years          = C.targetAge - C.currentAge;
-      const total          = bankCashTWD + stockTWD;
+      const total          = bankCashTWD + stockTWD + laborTWD;
       const inflatedTarget = C.targetReal * Math.pow(1 + C.inflation, years);
       const progress       = Math.min(total / inflatedTarget * 100, 100);
       const realReturn     = (1 + C.annualReturn) / (1 + C.inflation) - 1;
@@ -714,10 +818,11 @@
     }
 
     function updateAllocationPct() {
-      const total = bankCashTWD + stockTWD;
+      const total = bankCashTWD + stockTWD + laborTWD;
       if (!total) return;
       document.getElementById('accCashPct').textContent  = bankCashTWD ? (bankCashTWD / total * 100).toFixed(1) + '%' : '';
       document.getElementById('accStockPct').textContent = stockTWD    ? (stockTWD    / total * 100).toFixed(1) + '%' : '';
+      document.getElementById('accLaborPct').textContent = laborTWD    ? (laborTWD    / total * 100).toFixed(1) + '%' : '';
     }
 
     // ── 匯率（open.er-api.com）──
@@ -1230,12 +1335,15 @@
 
       bankCashTWD = 0;
       stockTWD    = 0;
+      laborTWD    = 0;
       fxRates     = {};
 
       document.getElementById('cashAccItem').style.display  = 'none';
       document.getElementById('stockAccItem').style.display = 'none';
+      document.getElementById('laborAccItem').style.display = 'none';
       setStatus('bankStatus', '讀取 bank_cash.csv…', '');
       setStatus('stockStatus', '讀取 STOCK.csv…', '');
+      setStatus('laborStatus', '讀取勞退資料…', '');
 
       await ensureFxRates(['USD', 'EUR', 'JPY', 'MYR']);
 
@@ -1254,6 +1362,14 @@
             return rows.length ? renderStockAccordion(rows, source, date) : setStatus('stockStatus', '股票資料為空', 'err');
           })
           .catch(e => setStatus('stockStatus', e.message, 'err')),
+
+        fetchLaborData()
+          .then(({ text, source, date }) => {
+            const rows = parseLaborCSV(text);
+            if (!rows.length) { setStatus('laborStatus', '勞退資料為空', 'err'); return; }
+            renderLaborAccordion(rows, source, date);
+          })
+          .catch(e => setStatus('laborStatus', e.message, 'err')),
       ]);
 
       document.getElementById('updated').textContent =

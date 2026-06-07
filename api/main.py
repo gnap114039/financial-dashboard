@@ -29,8 +29,15 @@ BANK_SHEET_URL = (
     "/pub?gid=983098033&single=true&output=csv"
 )
 
-STOCK_DIR = Path("/app/data/stock")
-BANK_DIR  = Path("/app/data/bank")
+LABOR_SHEET_URL = (
+    "https://docs.google.com/spreadsheets/d/e/"
+    "2PACX-1vQ6oDlhxWgtYn3IVCV1-ewP6kMsULRuVJPXiAYLMV_dXVXRbH8VGI7LzM6wtXqXX9EJTxQgFKqb0BlF"
+    "/pub?gid=889457991&single=true&output=csv"
+)
+
+STOCK_DIR   = Path("/app/data/stock")
+BANK_DIR    = Path("/app/data/bank")
+PENSION_DIR = Path("/app/data/pension")
 
 
 async def _fetch_sheet(url: str) -> str:
@@ -126,3 +133,31 @@ async def refresh_bank(force: bool = False):
 async def list_bank_history():
     """列出所有銀行歷史快照檔名。"""
     return [f.name for f in sorted(BANK_DIR.glob("bank_*.csv"))]
+
+
+@app.get("/api/pension/refresh", response_class=PlainTextResponse)
+async def refresh_pension(force: bool = False):
+    """回傳勞退 CSV。今日快照存在時直接回傳；否則從 Google Sheets 抓取並存檔。"""
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    snapshot = PENSION_DIR / f"pension_{date_str}.csv"
+
+    if not force and snapshot.exists():
+        return PlainTextResponse(
+            snapshot.read_text(encoding="utf-8"),
+            headers={"X-Data-Source": "cache", "X-Snapshot-Date": date_str},
+        )
+
+    csv_content = await _fetch_sheet(LABOR_SHEET_URL)
+    PENSION_DIR.mkdir(parents=True, exist_ok=True)
+    snapshot.write_text(csv_content, encoding="utf-8")
+
+    return PlainTextResponse(
+        csv_content,
+        headers={"X-Data-Source": "fresh", "X-Snapshot-Date": date_str},
+    )
+
+
+@app.get("/api/pension/history")
+async def list_pension_history():
+    """列出所有勞退歷史快照檔名。"""
+    return [f.name for f in sorted(PENSION_DIR.glob("pension_*.csv"))]
