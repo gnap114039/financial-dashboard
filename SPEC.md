@@ -47,11 +47,13 @@
 
 | 資料 | Google Sheets 工作表 |
 |---|---|
-| 股票 / ETF | `stock` 工作表，欄位：Ticker, Total Share, Average, Total Price, Current Price |
+| 股票 / ETF | `stock` 工作表，欄位：Ticker, Total Share, Average, Total Price, Current Price, Currency（選填） |
 | 銀行現金 | `bank_cash` 工作表，欄位：Bank, NTD, USD, EUR, JPY, MYR, CNY |
 | 勞工退休金 | `labor_pension` 工作表，欄位：TWD（類別名）, 累計金額（本金 TWD）, 收益累計金額（TWD） |
 
 **`Current Price` 欄位說明：** 供無法透過 Finnhub API 取得報價的持倉手動填入（如 LSE 掛牌的 IB01），其餘填 `-` 由 API 自動取得。
+
+**`Currency` 欄位說明：** 選填。填 `TWD` 時，前端自動將 `Current Price` 與 `Total Price` 除以 USD/TWD 匯率換算為 USD 後計算。適用於台灣掛牌股票（如 ALLRING）。
 
 **`PRINCIPAL` 特殊列：** `Ticker` 填 `PRINCIPAL`，`Total Price` 填入歷史累積實際投入本金（USD）。前端自動讀取並顯示，不計入持倉計算。
 

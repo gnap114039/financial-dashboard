@@ -998,7 +998,9 @@
         const pnlText   = s.pnlUSD === null ? ''
           : `${s.pnlUSD >= 0 ? '+' : ''}${fmtUSD(s.pnlUSD)} (${s.pnlUSD >= 0 ? '+' : ''}${s.pnlPct.toFixed(2)}%)`;
         const priceLabel = s.priceUSD
-          ? `${fmtUSD(s.priceUSD)} <span style="font-size:0.7rem;color:#64748b">${s.priceSource}</span>`
+          ? (s.isTWD
+              ? `${fmtUSD(s.priceUSD)} <span style="font-size:0.7rem;color:#64748b">≈ NT$${s.origPriceTWD?.toLocaleString('en-US')} ${s.priceSource}</span>`
+              : `${fmtUSD(s.priceUSD)} <span style="font-size:0.7rem;color:#64748b">${s.priceSource}</span>`)
           : '—';
         const el = document.createElement('div');
         el.className = 'stock-item';
@@ -1236,17 +1238,20 @@
       for (const row of openRows) {
         const ticker      = row['Ticker'];
         const shares      = parseFloat(row['Total Share']);
-        const totalCost   = parseAmount(row['Total Price']);
+        const isTWD       = row['Currency']?.trim().toUpperCase() === 'TWD';
+        const totalCost   = isTWD ? parseAmount(row['Total Price']) / usdToTWD : parseAmount(row['Total Price']);
         const manualPrice = row['Current Price']?.trim();
 
-        let marketValueUSD, priceUSD, pnlUSD, pnlPct, priceSource;
+        let marketValueUSD, priceUSD, pnlUSD, pnlPct, priceSource, origPriceTWD;
 
         if (manualPrice && manualPrice !== '-') {
-          priceUSD       = parseFloat(manualPrice);
+          const rawPrice = parseFloat(manualPrice);
+          if (isTWD) { origPriceTWD = rawPrice; priceUSD = rawPrice / usdToTWD; }
+          else        { priceUSD = rawPrice; }
           marketValueUSD = shares * priceUSD;
           pnlUSD         = marketValueUSD - totalCost;
           pnlPct         = totalCost !== 0 ? (pnlUSD / Math.abs(totalCost) * 100) : 0;
-          priceSource    = '手動';
+          priceSource    = isTWD ? '手動(TWD)' : '手動';
         } else {
           try {
             priceUSD = await fetchStockPrice(ticker);
@@ -1265,7 +1270,7 @@
 
         const twdValue = marketValueUSD * usdToTWD;
         grandTotal += twdValue;
-        openStocks.push({ ticker, shares, priceUSD, priceSource, marketValueUSD, twdValue, totalCost, pnlUSD, pnlPct, color: STOCK_COLORS[openStocks.length % STOCK_COLORS.length] });
+        openStocks.push({ ticker, shares, priceUSD, priceSource, marketValueUSD, twdValue, totalCost, pnlUSD, pnlPct, isTWD, origPriceTWD, color: STOCK_COLORS[openStocks.length % STOCK_COLORS.length] });
       }
 
       // 將 Finnhub 抓到的股價寫回今日快照（僅本機）
@@ -1300,7 +1305,10 @@
       // Σ所有 Total Price（含 cash row、含已清倉，排除 PRINCIPAL）→ 計算投入本金分母
       stockCostTWD = rows
         .filter(r => r['Ticker'].toLowerCase() !== 'principal')
-        .reduce((sum, row) => sum + parseAmount(row['Total Price']) * usdToTWD, 0);
+        .reduce((sum, row) => {
+          const isTWD = row['Currency']?.trim().toUpperCase() === 'TWD';
+          return sum + (isTWD ? parseAmount(row['Total Price']) : parseAmount(row['Total Price']) * usdToTWD);
+        }, 0);
 
       if (principalRow) {
         const principalUSD = parseAmount(principalRow['Total Price']);
