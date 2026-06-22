@@ -1245,7 +1245,7 @@
         let marketValueUSD, priceUSD, pnlUSD, pnlPct, priceSource, origPriceTWD;
 
         if (manualPrice && manualPrice !== '-') {
-          const rawPrice = parseFloat(manualPrice);
+          const rawPrice = parseAmount(manualPrice);
           if (isTWD) { origPriceTWD = rawPrice; priceUSD = rawPrice / usdToTWD; }
           else        { priceUSD = rawPrice; }
           marketValueUSD = shares * priceUSD;
