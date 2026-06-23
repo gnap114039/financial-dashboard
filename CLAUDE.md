@@ -80,6 +80,18 @@ VS Code Live Preview 開啟 `src/index.html`，或直接用瀏覽器開啟。
 
 完整 URL 在 `api/main.py` 的 `STOCK_SHEET_URL` / `BANK_SHEET_URL` / `LABOR_SHEET_URL`，以及 `src/index.html` 的對應常數。
 
+### 股價來源（`Current Price` 三種填法）
+
+1. **`-`** → 前端透過 Finnhub API 自動取得（美股，免費方案涵蓋）。
+2. **手動數字** → 直接在 Sheets 填入現價。
+3. **Apps Script + Yahoo Finance 自動填** → 給 Finnhub / GOOGLEFINANCE 抓不到的標的（上櫃 TPEx 股如 `6187.TWO`、LSE 股如 `IB01.L`）。
+
+> **為何需要第 3 種**：Finnhub 免費方案不含上櫃 / LSE；GOOGLEFINANCE 對上櫃（TPEx）覆蓋零散，常回 `#N/A`。
+>
+> **Apps Script 機制**：綁在 Google Sheets 上（擴充功能 → Apps Script），時間觸發每 15 分鐘執行 `updatePrices()`。它以 gid `756201628` 定位股票分頁、用標題名找 `Ticker` / `Current Price` 欄、用代號值找列，呼叫 Yahoo `query1.finance.yahoo.com/v8/finance/chart/<symbol>` 取 `regularMarketPrice` 寫回 `Current Price`。代號清單在腳本的 `SYMBOLS` 陣列（目前 `['6187.TWO']`）。需授權 `script.external_request` scope。Yahoo 為非官方 API，偶有格式 / 限速風險，TPEx 官方 API 為穩定備援。
+>
+> 此腳本存在 Google Sheets 端，**不在本 repo**。前端對第 2、3 種一視同仁當「已有現價」處理，不會再打 Finnhub。
+
 ---
 
 ## API Endpoints
@@ -109,7 +121,7 @@ Response header `X-Data-Source: cache | fresh` 標示資料來源。
 | `Total Share` | 持股數，0 = 已清倉 |
 | `Average` | 每股均價（USD） |
 | `Total Price` | 持倉成本（USD），負值代表已實現獲利 |
-| `Current Price` | 手動填入的現價（USD），`-` 表示由 Finnhub 自動取得 |
+| `Current Price` | 現價，三種來源：`-` → 前端由 Finnhub 自動取得（美股）；數字 → 手動或由 Google Sheets Apps Script 自動填入（見下方） |
 | `Currency` | 選填，填 `TWD` 時前端自動將 `Current Price` 與 `Total Price` 除以匯率換算為 USD |
 | `PRINCIPAL` | 特殊 ticker，`Total Price` 填入歷史累積投入本金（USD），前端自動讀取，不計入持倉 |
 

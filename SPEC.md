@@ -51,7 +51,7 @@
 | 銀行現金 | `bank_cash` 工作表，欄位：Bank, NTD, USD, EUR, JPY, MYR, CNY |
 | 勞工退休金 | `labor_pension` 工作表，欄位：TWD（類別名）, 累計金額（本金 TWD）, 收益累計金額（TWD） |
 
-**`Current Price` 欄位說明：** 供無法透過 Finnhub API 取得報價的持倉手動填入（如 LSE 掛牌的 IB01），其餘填 `-` 由 API 自動取得。
+**`Current Price` 欄位說明：** 三種來源——(1) 填 `-` 由前端透過 Finnhub API 自動取得（美股）；(2) 手動填入數字；(3) 由綁在 Google Sheets 上的 Apps Script（時間觸發 + Yahoo Finance）自動填入，供 Finnhub / GOOGLEFINANCE 抓不到的標的（上櫃 TPEx 股如 `6187.TWO`、LSE 股如 `IB01.L`）。Apps Script 以 gid 定位股票分頁、依代號比對列、寫回 `Current Price`，存在 Sheets 端不在 repo。前端對第 (2)(3) 種一視同仁當已有現價處理。
 
 **`Currency` 欄位說明：** 選填。填 `TWD` 時，前端自動將 `Current Price` 與 `Total Price` 除以 USD/TWD 匯率換算為 USD 後計算。適用於台灣掛牌股票（如 ALLRING）。
 
@@ -139,3 +139,4 @@
 | v0.2 | 2026-05-24 | 更新架構：Google Sheets 輸入、FastAPI 快照後端、多幣別切換、已完成功能標記 |
 | v0.3 | 2026-05-30 | 股票四視圖切換、Finnhub 股價回寫快照、GitHub Pages 密碼保護、GitHub icon |
 | v0.4 | 2026-06-07 | 勞工退休金 Accordion（Google Sheets + localStorage 快取 + FastAPI 快照） |
+| v0.5 | 2026-06-24 | TWD 計價股票（Currency 欄）、修正千分位解析、Apps Script + Yahoo 自動補上櫃/LSE 股價 |
