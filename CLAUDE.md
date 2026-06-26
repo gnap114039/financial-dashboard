@@ -78,7 +78,9 @@ VS Code Live Preview 開啟 `src/index.html`，或直接用瀏覽器開啟。
 | 銀行現金 | `gid=983098033` |
 | 勞工退休金 | `gid=889457991` |
 
-完整 URL 在 `api/main.py` 的 `STOCK_SHEET_URL` / `BANK_SHEET_URL` / `LABOR_SHEET_URL`，以及 `src/index.html` 的對應常數。
+後端 `api/main.py` 以 `FEEDS` 註冊表（feed → gid + 快照目錄）+ `sheet_url(gid)` 組出 URL；前端 `src/index.html` 則有對應的 `STOCK_SHEET_URL` / `BANK_SHEET_URL` / `LABOR_SHEET_URL` 常數。
+
+後端設定可由環境變數覆寫（預設維持現值）：`SHEET_DOC_ID`、`DATA_DIR`（預設 `/app/data`）、`TZ_NAME`（預設 `Asia/Taipei`）、`FETCH_TIMEOUT`、`STOCK_GID` / `BANK_GID` / `PENSION_GID`。
 
 ### 股價來源（`Current Price` 三種填法）
 

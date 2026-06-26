@@ -76,15 +76,6 @@
     .progress-fill   { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #3b82f6, #8b5cf6); transition: width 0.8s ease; }
     .progress-labels { display: flex; justify-content: space-between; margin-top: 0.4rem; font-size: 0.72rem; color: #64748b; }
 
-    .status-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-      margin-bottom: 1rem;
-    }
-
-    @media (max-width: 600px) { .status-row { grid-template-columns: 1fr; } }
-
     .status-line { font-size: 0.75rem; color: #64748b; min-height: 1rem; }
     .status-line.ok  { color: #4ade80; }
     .status-line.err { color: #f87171; }
@@ -105,6 +96,8 @@
     }
 
     .acc-header:hover { background: #273548; }
+    .acc-header .acc-name-col { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+    .acc-header .acc-name-col .status-line { min-height: 0; }   /* 標題內不保留空行 */
     .acc-header .acc-name   { font-weight: 600; font-size: 0.95rem; }
     .acc-header .acc-right  { display: flex; align-items: center; gap: 0.75rem; }
     .acc-header .acc-amount { font-weight: 700; font-size: 0.95rem; }
@@ -421,18 +414,15 @@
   <!-- 資產配置 -->
   <div class="section-title">資產配置</div>
 
-  <div class="status-row">
-    <div class="status-line" id="bankStatus"></div>
-    <div class="status-line" id="stockStatus"></div>
-    <div class="status-line" id="laborStatus"></div>
-  </div>
-
   <!-- Accordion -->
   <div class="accordion">
 
     <div class="acc-item" id="cashAccItem" style="display:none">
       <div class="acc-header" onclick="toggleAcc(this)">
-        <span class="acc-name">銀行現金存款</span>
+        <span class="acc-name-col">
+          <span class="acc-name">銀行現金存款</span>
+          <span class="status-line" id="bankStatus"></span>
+        </span>
         <span class="acc-right">
           <span class="acc-amount" id="accCashTotal">—</span>
           <span class="acc-pct" id="accCashPct"></span>
@@ -446,7 +436,10 @@
 
     <div class="acc-item" id="stockAccItem" style="display:none">
       <div class="acc-header" onclick="toggleAcc(this)">
-        <span class="acc-name">股票 / ETF</span>
+        <span class="acc-name-col">
+          <span class="acc-name">股票 / ETF</span>
+          <span class="status-line" id="stockStatus"></span>
+        </span>
         <span class="acc-right">
           <span class="acc-amount" id="accStockTotal">—</span>
           <span class="acc-pct" id="accStockPct"></span>
@@ -466,7 +459,10 @@
 
     <div class="acc-item" id="laborAccItem" style="display:none">
       <div class="acc-header" onclick="toggleAcc(this)">
-        <span class="acc-name">勞工退休金</span>
+        <span class="acc-name-col">
+          <span class="acc-name">勞工退休金</span>
+          <span class="status-line" id="laborStatus"></span>
+        </span>
         <span class="acc-right">
           <span class="acc-amount" id="accLaborTotal">—</span>
           <span class="acc-pct" id="accLaborPct"></span>
