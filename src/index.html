@@ -840,8 +840,12 @@
         const estRemMonth = estMonths % 12;
         const estAge      = C.currentAge + estYears;
         const monthLabel  = estRemMonth > 0 ? ` ${estRemMonth} 個月` : '';
-        const label       = estAge <= C.targetAge ? `${estAge} 歲${monthLabel} ✓` : `${estAge} 歲${monthLabel}`;
-        const cls         = estAge <= C.targetAge ? 'green' : 'yellow';
+        // 綠：準時/提早(≤目標)；黃：晚 ≤5 年；紅：晚 >5 年(仍可達但警示)
+        const targetMonths = (C.targetAge - C.currentAge) * 12;
+        const cls         = estMonths <= targetMonths ? 'green'
+                          : estMonths <= targetMonths + 60 ? 'yellow'
+                          : 'red';
+        const label       = cls === 'green' ? `${estAge} 歲${monthLabel} ✓` : `${estAge} 歲${monthLabel}`;
         const diffMonths  = (C.targetAge - C.currentAge) * 12 - estMonths;
         const diffY       = Math.abs(Math.floor(diffMonths / 12));
         const diffM       = Math.abs(diffMonths % 12);
