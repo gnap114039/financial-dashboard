@@ -621,6 +621,7 @@
 
     function renderLaborAccordion(rows, source, date) {
       if (!rows.length) return;
+      laborState = { rows, source, date };
       const keys         = Object.keys(rows[0]);
       const catKey       = keys[0]; // 類別（雇主提繳 / 個人提繳）
       const principalKey = keys[1]; // 累計金額（本金）
@@ -645,8 +646,8 @@
         el.innerHTML = `
           <span class="dl">${row[catKey]}</span>
           <span class="dr" style="text-align:right">
-            <div style="font-size:0.78rem;color:#64748b">${fmt(principal)} 本金 + <span class="green">+${fmt(returns)}</span> 收益</div>
-            <div>${fmt(subtotal)}</div>
+            <div style="font-size:0.78rem;color:#64748b">${fmtD(principal)} 本金 + <span class="green">+${fmtD(returns)}</span> 收益</div>
+            <div>${fmtD(subtotal)}</div>
           </span>`;
         laborList.appendChild(el);
       });
@@ -656,13 +657,13 @@
         totEl.className = 'stock-detail-row';
         totEl.style.cssText = 'border-top:1px solid #273548';
         const returnPct = totalPrincipal ? (totalReturns / totalPrincipal * 100).toFixed(2) : '0.00';
-        totEl.innerHTML = `<span class="dl" style="color:#64748b">累積收益合計</span><span class="dr green">+${fmt(totalReturns)} (+${returnPct}%)</span>`;
+        totEl.innerHTML = `<span class="dl" style="color:#64748b">累積收益合計</span><span class="dr green">+${fmtD(totalReturns)} (+${returnPct}%)</span>`;
 
         laborList.appendChild(totEl);
       }
 
       laborTWD = grandTotal;
-      document.getElementById('accLaborTotal').textContent = fmt(grandTotal);
+      document.getElementById('accLaborTotal').textContent = fmtD(grandTotal);
       document.getElementById('laborAccItem').style.display = '';
       const sourceTag = source === 'cache' ? `本機快取 · ${date}` : `已從 Google Sheets 更新 · ${date}`;
       setStatus('laborStatus', sourceTag, 'ok');
@@ -696,6 +697,8 @@
     let stockTWD           = 0;
     let stockCostTWD       = 0;
     let laborTWD           = 0;
+    let bankState          = null;   // 保留來源資料供切幣別時重繪（不重打網路）
+    let laborState         = null;
     let fxRates            = {};
     let displayCurrency    = 'TWD';
     let availableCurrencies = ['TWD'];
@@ -726,10 +729,19 @@
       sel.disabled = false;
     }
 
-    function onCurrencyChange() {
-      displayCurrency = document.getElementById('currencySelect').value;
+    // 重繪全頁（切幣別用）：總覽 + 投報 + 三個 accordion + 當前股票視圖。
+    // 股票用既有 stockViewData 重繪，不重打 Finnhub；bank 重跑時 FX 已快取。
+    function renderAll() {
       renderOverview();
       renderInvestmentReturn();
+      if (bankState)     renderBankAccordion(bankState.rows, bankState.dataSource, bankState.snapshotDate);
+      if (laborState)    renderLaborAccordion(laborState.rows, laborState.source, laborState.date);
+      if (stockViewData) renderStockView(currentStockView);
+    }
+
+    function onCurrencyChange() {
+      displayCurrency = document.getElementById('currencySelect').value;
+      renderAll();
     }
 
     // ── 格式化 ──
@@ -775,7 +787,7 @@
       document.getElementById('targetLabel').textContent     = '目標 ' + fmtD(inflatedTarget);
       document.getElementById('inflatedTarget').textContent  = fmtD(inflatedTarget);
       document.getElementById('inflatedSub').textContent     = `以 ${(C.inflation * 100).toFixed(1)}% 通膨換算 ${years} 年`;
-      document.getElementById('forecastInflated').textContent = fmt(inflatedTarget);
+      document.getElementById('forecastInflated').textContent = fmtD(inflatedTarget);
 
       if (estMonths) {
         const estYears    = Math.floor(estMonths / 12);
@@ -873,6 +885,7 @@
     }
 
     async function renderBankAccordion(rows, dataSource = 'fresh', snapshotDate = '') {
+      bankState = { rows, dataSource, snapshotDate };
       const currencies = rows.length > 0 ? Object.keys(rows[0]).filter(k => k !== 'Bank') : [];
       const neededFx   = currencies.filter(c => c !== 'NTD');
 
@@ -909,7 +922,7 @@
             <span class="cur-left"><span class="cur-tag">${cur}</span>${CURRENCY_NAMES[cur] || cur}</span>
             <span class="cur-right">
               <div class="cur-orig">${amt.toLocaleString('en-US', { maximumFractionDigits: 2 })} ${cur}${cur !== 'NTD' ? ` × ${rate.toFixed(4)}` : ''}</div>
-              <div class="cur-twd">${fmt(twd)}</div>
+              <div class="cur-twd">${fmtD(twd)}</div>
             </span>
           </div>`).join('');
 
@@ -919,7 +932,7 @@
           <div class="bank-header" onclick="toggleBank(this)">
             <span class="bank-name">${row.Bank}</span>
             <span class="bank-right">
-              <span class="bank-amount">${fmt(bankTotal)}</span>
+              <span class="bank-amount">${fmtD(bankTotal)}</span>
               <span class="bank-arrow">▼</span>
             </span>
           </div>
@@ -928,7 +941,7 @@
       });
 
       bankCashTWD = grandTotal;
-      document.getElementById('accCashTotal').textContent = fmt(grandTotal);
+      document.getElementById('accCashTotal').textContent = fmtD(grandTotal);
       document.getElementById('cashAccItem').style.display = '';
       renderOverview();
       updateAllocationPct();
@@ -1021,7 +1034,7 @@
               <span class="stock-shares">${fmtShares(s.shares)} 股</span>
             </span>
             <span class="stock-right">
-              <span class="stock-twd">${fmt(s.twdValue)}</span>
+              <span class="stock-twd">${fmtD(s.twdValue)}</span>
               <span class="stock-pnl ${pnlColor}">${pnlText}</span>
               <span class="stock-arrow">▼</span>
             </span>
@@ -1048,7 +1061,7 @@
               <span class="stock-shares">USD 現金</span>
             </span>
             <span class="stock-right">
-              <span class="stock-twd">${fmt(cash.twdValue)}</span>
+              <span class="stock-twd">${fmtD(cash.twdValue)}</span>
               <span class="stock-pnl"></span>
               <span class="stock-arrow">▼</span>
             </span>
@@ -1112,7 +1125,7 @@
           <div class="strip-legend-dot" style="background:${item.color}"></div>
           <span style="color:#e2e8f0;font-weight:600">${item.label}</span>
           <span style="color:#64748b">${pct}%</span>
-          <span style="color:#94a3b8">${fmt(item.value)}</span>
+          <span style="color:#94a3b8">${fmtD(item.value)}</span>
         </div>`;
       }).join('');
 
@@ -1160,7 +1173,7 @@
           <span class="bar-ticker">${s.ticker}</span>
           <div class="bar-track">
             <div class="bar-fill" style="width:${pct}%;background:${barColor}">
-              <span>${fmt(s.twdValue)}</span>
+              <span>${fmtD(s.twdValue)}</span>
             </div>
           </div>
           <span class="bar-pnl ${pnlColor}">${pnlText}</span>
@@ -1186,7 +1199,7 @@
           <div class="donut-legend-dot" style="background:${item.color}"></div>
           <span class="donut-legend-name">${item.label}</span>
           <span class="donut-legend-pct">${pct}%</span>
-          <span class="donut-legend-val">${fmt(item.value)}${pnlSpan}</span>
+          <span class="donut-legend-val">${fmtD(item.value)}${pnlSpan}</span>
         </div>`;
       }).join('');
 
@@ -1219,7 +1232,7 @@
             legend: { display: false },
             tooltip: {
               callbacks: {
-                label: ctx => ` ${fmt(ctx.raw)}（${(ctx.raw / total * 100).toFixed(1)}%）`
+                label: ctx => ` ${fmtD(ctx.raw)}（${(ctx.raw / total * 100).toFixed(1)}%）`
               }
             }
           }
@@ -1331,7 +1344,7 @@
       }
 
       stockTWD = grandTotal;
-      document.getElementById('accStockTotal').textContent = fmt(grandTotal);
+      document.getElementById('accStockTotal').textContent = fmtD(grandTotal);
       document.getElementById('stockAccItem').style.display = '';
       renderInvestmentReturn();
       renderListView(stockViewData);
