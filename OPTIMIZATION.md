@@ -38,7 +38,7 @@
 - [ ] **無股票資料時投報卡仍給合理狀態 + 輸入驗證** — `src/index.html:788-789, 662-665`
 - [ ] **NTD/TWD 統一成單一幣別碼** — `src/index.html:680, 690-691, 831, 887`
 - [ ] **wire `force=true`（手動重抓按鈕）** — `api/main.py` + `src/index.html:553` 等，讓當日 Sheets 更正值可見
-- [ ] **後端三 refresh/history 抽工廠 + config 化（DOC_ID/TZ/DATA_DIR 走 env）** — `api/main.py:20-72` 等，砍 ~90 行複製貼上、修掉 `/app/data` 硬編
+- [x] **後端三 refresh/history 抽工廠 + config 化（DOC_ID/TZ/DATA_DIR 走 env）** — `api/main.py`（commit c32f1a4）。FEEDS 註冊表 + 迴圈註冊路由，砍 ~90 行複製貼上；DATA_DIR/SHEET_DOC_ID/TZ_NAME/FETCH_TIMEOUT/*_GID 走 env。重建容器逐端點驗證行為一致
 
 ## 三、中工本（資料正確性根治）
 
