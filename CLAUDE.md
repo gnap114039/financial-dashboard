@@ -124,8 +124,8 @@ Response header `X-Data-Source: cache | fresh` 標示資料來源。
 |---|---|
 | `Ticker` | 股票代號，`CASH` 為券商現金 |
 | `Total Share` | 持股數，0 = 已清倉 |
-| `Average` | 每股均價（USD） |
-| `Total Price` | 持倉成本（USD），負值代表已實現獲利 |
+| `Average` | 每股持倉成本價＝`(買入資金−賣出資金)/可用股數`（非買入均價，可為負）。前端在股票明細顯示「每股持倉成本」；已清倉列則改放已實現損益（負值=賺）。詳見 `notes/cost-basis-convention.md` |
+| `Total Price` | 持倉成本（USD）＝`Average × 股數`＝該檔淨投入；負值代表已淨回收超過本金（已實現獲利） |
 | `Current Price` | 現價，三種來源：`-` → 前端由 Finnhub 自動取得（美股）；數字 → 手動或由 Google Sheets Apps Script 自動填入（見下方） |
 | `Currency` | 選填，填 `TWD` 時前端自動將 `Current Price` 與 `Total Price` 除以匯率換算為 USD |
 | `PRINCIPAL` | 特殊 ticker，`Total Price` 填入歷史累積投入本金（USD），前端自動讀取，不計入持倉 |

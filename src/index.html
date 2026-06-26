@@ -1083,6 +1083,11 @@
             <div class="stock-detail-row"><span class="dl">股價</span><span class="dr">${priceLabel}</span></div>
             <div class="stock-detail-row"><span class="dl">市值（USD）</span><span class="dr">${fmtUSD(s.marketValueUSD)}</span></div>
             <div class="stock-detail-row"><span class="dl">持倉成本（USD）</span><span class="dr">${fmtUSD(s.totalCost)}</span></div>
+            <div class="stock-detail-row"><span class="dl">每股持倉成本（USD）</span><span class="dr">${
+              s.isTWD
+                ? `${fmtUSD(s.avgCostUSD)} <span style="font-size:0.7rem;color:#64748b">≈ NT$${s.origAvgTWD?.toLocaleString('en-US')}</span>`
+                : fmtUSD(s.avgCostUSD)
+            }</span></div>
             <div class="stock-detail-row"><span class="dl">未實現損益</span><span class="dr ${pnlColor}">${pnlText || '—'}</span></div>
             <div class="stock-detail-row"><span class="dl">USD → TWD 匯率</span><span class="dr">${usdToTWD.toFixed(4)}</span></div>
             <div class="stock-detail-row"><span class="dl">市值（TWD）</span><span class="dr">${fmt(s.twdValue)}</span></div>
@@ -1303,6 +1308,9 @@
         const shares      = parseFloat(row['Total Share']);
         const isTWD       = row['Currency']?.trim().toUpperCase() === 'TWD';
         const totalCost   = isTWD ? parseAmount(row['Total Price']) / usdToTWD : parseAmount(row['Total Price']);
+        const rawAvg      = parseAmount(row['Average']);   // 每股持倉成本（持倉成本價，原幣別）
+        const avgCostUSD  = isTWD ? rawAvg / usdToTWD : rawAvg;
+        const origAvgTWD  = isTWD ? rawAvg : null;
         const manualPrice = row['Current Price']?.trim();
 
         let marketValueUSD, priceUSD, pnlUSD, pnlPct, priceSource, origPriceTWD;
@@ -1333,7 +1341,7 @@
 
         const twdValue = marketValueUSD * usdToTWD;
         grandTotal += twdValue;
-        openStocks.push({ ticker, shares, priceUSD, priceSource, marketValueUSD, twdValue, totalCost, pnlUSD, pnlPct, isTWD, origPriceTWD, color: STOCK_COLORS[openStocks.length % STOCK_COLORS.length] });
+        openStocks.push({ ticker, shares, priceUSD, priceSource, marketValueUSD, twdValue, totalCost, avgCostUSD, origAvgTWD, pnlUSD, pnlPct, isTWD, origPriceTWD, color: STOCK_COLORS[openStocks.length % STOCK_COLORS.length] });
       }
 
       // 將 Finnhub 抓到的股價寫回今日快照（僅本機）
