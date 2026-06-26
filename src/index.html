@@ -613,15 +613,10 @@
     }
 
     function parseLaborCSV(text) {
-      const lines   = text.trim().split('\n').filter(l => l.trim());
-      const headers = lines[0].split(',').map(h => h.trim());
-      const catKey  = headers[0];
-      return lines.slice(1).map(line => {
-        const vals = line.split(',').map(v => v.trim());
-        const obj  = {};
-        headers.forEach((h, i) => obj[h] = vals[i] || '0');
-        return obj;
-      }).filter(r => r[catKey]);
+      const rows = parseCSV(text, '0');
+      if (!rows.length) return [];
+      const catKey = Object.keys(rows[0])[0];
+      return rows.filter(r => r[catKey]);
     }
 
     function renderLaborAccordion(rows, source, date) {
@@ -638,8 +633,8 @@
       laborList.innerHTML = '';
 
       rows.forEach(row => {
-        const principal = parseFloat(row[principalKey]) || 0;
-        const returns   = returnKey ? (parseFloat(row[returnKey]) || 0) : 0;
+        const principal = parseAmount(row[principalKey]) || 0;
+        const returns   = returnKey ? (parseAmount(row[returnKey]) || 0) : 0;
         const subtotal  = principal + returns;
         grandTotal     += subtotal;
         totalReturns   += returns;
@@ -710,11 +705,14 @@
 
     function toDisplay(twdValue) {
       if (displayCurrency === 'TWD') return twdValue;
-      return twdValue / (fxRates[displayCurrency] || 1);
+      const rate = fxRates[displayCurrency];
+      if (!rate) return NaN;   // 無匯率時回 NaN，由 fmtD 顯示「匯率不可用」而非靜默當 1:1
+      return twdValue / rate;
     }
 
     function fmtD(twdValue) {
       const val = toDisplay(twdValue);
+      if (Number.isNaN(val)) return `${displayCurrency} 匯率不可用`;
       const sym = CURRENCY_SYMBOLS[displayCurrency] || displayCurrency;
       const dec = CURRENCY_DECIMALS[displayCurrency] ?? 2;
       return sym + ' ' + val.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
@@ -751,6 +749,8 @@
 
     // ── 總覽 ──
     function renderOverview() {
+      // 自癒：顯示幣別若失去匯率（如刷新時該 feed 失敗），退回 TWD，避免整頁卡在「匯率不可用」
+      if (displayCurrency !== 'TWD' && !fxRates[displayCurrency]) displayCurrency = 'TWD';
       const C              = getConfig();
       const years          = C.targetAge - C.currentAge;
       const total          = bankCashTWD + stockTWD + laborTWD;
@@ -869,14 +869,7 @@
 
     // ── 銀行 CSV ──
     function parseBankCSV(text) {
-      const lines   = text.trim().split('\n').filter(l => l.trim());
-      const headers = lines[0].split(',').map(h => h.trim()).filter(Boolean);
-      return lines.slice(1).map(line => {
-        const vals = line.split(',').map(v => v.trim());
-        const obj  = {};
-        headers.forEach((h, i) => obj[h] = vals[i] || '0');
-        return obj;
-      }).filter(r => r.Bank);
+      return parseCSV(text, '0').filter(r => r['Bank']);
     }
 
     async function renderBankAccordion(rows, dataSource = 'fresh', snapshotDate = '') {
@@ -900,7 +893,7 @@
         const curBreakdown = [];
 
         currencies.forEach(cur => {
-          const amt = parseFloat(row[cur]) || 0;
+          const amt = parseAmount(row[cur]) || 0;
           if (amt === 0) return;
           const rate = cur === 'NTD' ? 1 : (fxRates[cur] || 0);
           const twd  = amt * rate;
@@ -934,12 +927,6 @@
         bankList.appendChild(el);
       });
 
-      // Build dropdown from all currency columns in bank CSV + always TWD + USD
-      const seen = new Set(['TWD', 'USD']);
-      currencies.forEach(cur => { if (cur !== 'NTD') seen.add(cur); });
-      availableCurrencies = Array.from(seen);
-      populateCurrencyDropdown();
-
       bankCashTWD = grandTotal;
       document.getElementById('accCashTotal').textContent = fmt(grandTotal);
       document.getElementById('cashAccItem').style.display = '';
@@ -952,30 +939,35 @@
       return parseFloat((str || '0').replace(/[$,"]/g, ''));
     }
 
-    function parseStockCSV(text) {
-      const lines   = text.trim().split('\n').filter(l => l.trim());
-      const headers = lines[0].split(',').map(h => h.trim());
-      const rows    = [];
-      let   i       = 1;
-
-      while (i < lines.length) {
-        const parts = [];
-        let   cur   = '';
-        let   inQ   = false;
-
-        for (const ch of lines[i]) {
-          if (ch === '"') { inQ = !inQ; }
-          else if (ch === ',' && !inQ) { parts.push(cur.trim()); cur = ''; }
-          else { cur += ch; }
-        }
-        parts.push(cur.trim());
-
-        const obj = {};
-        headers.forEach((h, idx) => obj[h] = parts[idx] || '');
-        if (obj['Ticker']) rows.push(obj);
-        i++;
+    // ── 共用 CSV parser（引號感知，處理 "1,234" 這種含逗號的值）──
+    function splitCSVLine(line) {
+      const parts = [];
+      let cur = '', inQ = false;
+      for (const ch of line) {
+        if (ch === '"') { inQ = !inQ; }
+        else if (ch === ',' && !inQ) { parts.push(cur.trim()); cur = ''; }
+        else { cur += ch; }
       }
-      return rows;
+      parts.push(cur.trim());
+      return parts;
+    }
+
+    // 回傳物件陣列；defaultValue 用於缺格（銀行/勞退填 '0'，股票填 ''）。
+    // 跳過空白標題，並以原始欄位索引對齊，避免中間空欄造成位移。
+    function parseCSV(text, defaultValue = '') {
+      const lines = text.trim().split('\n').filter(l => l.trim());
+      if (!lines.length) return [];
+      const headers = splitCSVLine(lines[0]);
+      return lines.slice(1).map(line => {
+        const vals = splitCSVLine(line);
+        const obj  = {};
+        headers.forEach((h, i) => { if (h) obj[h] = vals[i] || defaultValue; });
+        return obj;
+      });
+    }
+
+    function parseStockCSV(text) {
+      return parseCSV(text).filter(r => r['Ticker']);
     }
 
     async function fetchStockPrice(ticker) {
@@ -1402,6 +1394,13 @@
           })
           .catch(e => setStatus('laborStatus', e.message, 'err')),
       ]);
+
+      // 幣別下拉與顯示幣別自癒：與各 feed 成敗解耦，依「所有已載入匯率」組成（TWD 永遠可選）
+      const avail = new Set(['TWD']);
+      Object.keys(fxRates).forEach(c => { if (fxRates[c]) avail.add(c); });
+      availableCurrencies = Array.from(avail);
+      if (!availableCurrencies.includes(displayCurrency)) displayCurrency = 'TWD';
+      populateCurrencyDropdown();
 
       document.getElementById('updated').textContent =
         new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' });
