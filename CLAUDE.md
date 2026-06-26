@@ -34,6 +34,9 @@ FastAPI（Docker）
 financial_dashboard/
 ├── CLAUDE.md
 ├── SPEC.md
+├── README.md
+├── OPTIMIZATION.md           → 優化待辦清單
+├── backup_data.sh            → 將 src/data 快照備份到獨立 private repo
 ├── .gitignore
 ├── docker-compose.yml
 ├── .github/
@@ -43,9 +46,9 @@ financial_dashboard/
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   └── main.py               → FastAPI endpoints
+├── notes/                    → 開發筆記與慣例（自 Claude memory 同步）
 └── src/
     ├── index.html             → 前端主頁面
-    ├── bank_cash.csv          → 已棄用（改用 Google Sheets）
     └── data/                  → 每日快照（已加入 .gitignore，不納入版控）
         ├── bank/              → bank_YYYY-MM-DD.csv
         ├── stock/             → stock_YYYY-MM-DD.csv
