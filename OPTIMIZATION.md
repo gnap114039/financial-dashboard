@@ -30,7 +30,7 @@
 
 ## 二、低工本、高影響（本輪核心）
 
-- [ ] **匯率失敗外顯（取代靜默 1:1）** — `src/index.html:695, 830-844, 1357`。檢查 `ensureFxRates` 回傳，顯示「匯率不可用」，避免外幣資產被當 1:1 計入
+- [x] **匯率失敗外顯（取代靜默 1:1）** — `src/index.html`（commit 4e7ddb9）。`toDisplay` 缺匯率回 NaN → `fmtD` 顯示「匯率不可用」；下拉只列有匯率的幣別、與 bank render 解耦；`renderOverview` 自癒退回 TWD。經 13-agent 對抗式審查（2 問題已修）
 - [ ] **集中 `renderAll()`，切幣別/改參數整頁重繪** — `src/index.html:678, 713-717`。消除殘留 NT$ 與 stale 卡片
 - [ ] **Finnhub 報價平行化（+ AbortController timeout）** — `src/index.html:1238-1274`。N×RTT → ~1×RTT，單檔卡死不再拖垮整個手風琴
 - [ ] **統一三 fetcher 為單一 `fetchFeed()`** — `src/index.html:550-595`，收掉 ~45 行重複
@@ -42,7 +42,7 @@
 
 ## 三、中工本（資料正確性根治）
 
-- [ ] **三 feed 共用引號 + 數字感知 parser（全走 `parseAmount`）** — `src/index.html:597-607, 853-862, 937-961`。一次修掉兩個 high-severity 金額腐蝕問題（見問題 #1）
+- [x] **三 feed 共用引號 + 數字感知 parser（全走 `parseAmount`）** — `src/index.html`（commit 4e7ddb9）。新增 `splitCSVLine` + `parseCSV`，銀行/勞退改走它 + `parseAmount`，修掉千分位金額腐蝕（問題 #1）。16 項單元測試通過
 - [ ] **三套 formatter 統一成幣別感知 `fmtD`** — `src/index.html:698-703, 720-722`。混幣 UI 根因；`fmtUSD` 僅保留給真 USD-native 數字
 - [ ] **退休模型統一一套通膨慣例** — `src/index.html:739-751, 757`。建議全程實質：實質報酬、實質目標、月投入也折現，讓進度條/目標卡/退休年齡量同一個目標
 - [ ] **抓回內容做 CSV 健檢，失敗則回退上一份快照** — `api/main.py:43-67`。防 Google HTML 錯誤頁毒化整天 cache
