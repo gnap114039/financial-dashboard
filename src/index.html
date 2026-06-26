@@ -1004,6 +1004,8 @@
 
     function renderStockView(view) {
       if (!stockViewData) return;
+      // 最上層總額隨幣別更新（renderAll 不重跑 renderStockAccordion 以免重打 Finnhub）
+      document.getElementById('accStockTotal').textContent = fmtD(stockViewData.grandTotal);
       if (view === 'list')  renderListView(stockViewData);
       if (view === 'strip') renderStripView(stockViewData);
       if (view === 'bar')   renderBarView(stockViewData);
