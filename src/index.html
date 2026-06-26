@@ -855,9 +855,11 @@
           diffMonths > 0 ? `比目標提早 ${diffLabel}` :
           diffMonths < 0 ? `比目標晚 ${diffLabel}` : '剛好達到目標';
       } else {
-        document.getElementById('retireAge').textContent   = '50 年內無法達標';
-        document.getElementById('retireAge').className     = 'value red';
-        document.getElementById('forecastAge').textContent = '50 年內無法達標';
+        document.getElementById('retireAge').textContent    = '50 年內無法達標';
+        document.getElementById('retireAge').className      = 'value red';
+        document.getElementById('retireAgeSub').textContent = '以目前參數難以達成目標';
+        document.getElementById('forecastAge').textContent  = '50 年內無法達標';
+        document.getElementById('forecastAge').className    = 'fr red';
       }
     }
 
