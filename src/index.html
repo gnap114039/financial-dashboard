@@ -484,11 +484,11 @@
   <div class="section-title">投資報酬明細</div>
   <div class="forecast-card">
     <div class="forecast-row">
-      <span class="fl">實際投入本金（USD）</span>
-      <span class="fr"><input class="forecast-input" id="inputActualPrincipal" value="0" readonly style="opacity:0.6;cursor:default"> USD</span>
+      <span class="fl">實際投入本金（<span class="cur-unit">TWD</span>）</span>
+      <span class="fr"><input class="forecast-input" id="inputActualPrincipal" value="0" readonly style="opacity:0.6;cursor:default"> <span class="cur-unit">TWD</span></span>
     </div>
-    <div class="forecast-row"><span class="fl">實際投入本金（TWD）</span><span class="fr"><span id="actualPrincipalTWD">—</span></span></div>
-    <div class="forecast-row"><span class="fl">計算投入本金（TWD）</span><span class="fr"><span id="calcPrincipalTWD">—</span></span></div>
+    <div class="forecast-row"><span class="fl">實際投入本金（<span class="cur-unit">TWD</span>）</span><span class="fr"><span id="actualPrincipalTWD">—</span></span></div>
+    <div class="forecast-row"><span class="fl">計算投入本金（<span class="cur-unit">TWD</span>）</span><span class="fr"><span id="calcPrincipalTWD">—</span></span></div>
     <div class="forecast-row"><span class="fl">利息 ／ 股息收益</span><span class="fr"><span id="interestIncome">—</span></span></div>
     <div class="forecast-row"><span class="fl">資本利得</span><span class="fr"><span id="capitalGain">—</span></span></div>
     <div class="forecast-row"><span class="fl">總投資收益</span><span class="fr"><span id="totalReturnDetail">—</span></span></div>
@@ -502,12 +502,12 @@
     <div class="forecast-row"><span class="fl">距離退休</span><span class="fr"><span>12 年</span></span></div>
     <div class="forecast-row">
       <span class="fl">退休目標（2026 購買力）</span>
-      <span class="fr"><input class="forecast-input" id="inputTargetReal" value="30000000" oninput="onConfigChange()"> TWD</span>
+      <span class="fr"><input class="forecast-input" id="inputTargetReal" value="30000000" oninput="onConfigChange('targetReal')"> <span class="cur-unit">TWD</span></span>
     </div>
     <div class="forecast-row"><span class="fl">退休目標（通膨換算後）</span><span class="fr"><span id="forecastInflated">—</span></span></div>
     <div class="forecast-row">
       <span class="fl">每月投入</span>
-      <span class="fr"><input class="forecast-input" id="inputMonthlyInvest" value="80000" oninput="onConfigChange()"> TWD</span>
+      <span class="fr"><input class="forecast-input" id="inputMonthlyInvest" value="80000" oninput="onConfigChange('monthlyInvest')"> <span class="cur-unit">TWD</span></span>
     </div>
     <div class="forecast-row">
       <span class="fl">通膨假設</span>
@@ -682,14 +682,20 @@
       return {
         currentAge:    CONFIG_STATIC.currentAge,
         targetAge:     CONFIG_STATIC.targetAge,
-        targetReal:    readInput('inputTargetReal',    30000000),
-        monthlyInvest: readInput('inputMonthlyInvest', 80000),
+        targetReal:    targetRealTWD,      // canonical（TWD）
+        monthlyInvest: monthlyInvestTWD,   // canonical（TWD）
         inflation:     readInput('inputInflation',     3.2) / 100,
         annualReturn:  readInput('inputAnnualReturn',  6)   / 100,
       };
     }
 
-    function onConfigChange() { renderOverview(); }
+    // field 指定被編輯的欄位，只把那一欄從顯示幣別換回 TWD 存回 canonical（避免跨欄捨入漂移）。
+    // 不改寫輸入框（避免游標跳動）；通膨/報酬率無 field，直接重算。
+    function onConfigChange(field) {
+      if (field === 'targetReal')    targetRealTWD    = fromDisplayNum(readInput('inputTargetReal',    toDisplayNum(targetRealTWD)));
+      if (field === 'monthlyInvest') monthlyInvestTWD = fromDisplayNum(readInput('inputMonthlyInvest', toDisplayNum(monthlyInvestTWD)));
+      renderOverview();
+    }
 
     const CURRENCY_NAMES = { NTD: '新台幣', USD: '美元', EUR: '歐元', JPY: '日圓', MYR: '馬來西亞令吉', CNY: '人民幣' };
 
@@ -702,6 +708,11 @@
     let fxRates            = {};
     let displayCurrency    = 'TWD';
     let availableCurrencies = ['TWD'];
+
+    // 預測參數以原幣別為準（輸入框只負責顯示/編輯，切幣別時換算改寫）
+    let targetRealTWD      = 30000000;  // 退休目標（2026 購買力，TWD）
+    let monthlyInvestTWD   = 80000;     // 每月投入（TWD）
+    let principalUSD       = 0;         // 實際投入本金（USD，來自 Sheets PRINCIPAL 列）
 
     const CURRENCY_SYMBOLS  = { TWD: 'NT$', USD: 'US$', EUR: '€', JPY: '¥', MYR: 'RM', CNY: 'CN¥' };
     const CURRENCY_DECIMALS = { TWD: 0, USD: 2, EUR: 2, JPY: 0, MYR: 2, CNY: 2 };
@@ -721,6 +732,36 @@
       return sym + ' ' + val.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
     }
 
+    // 數值版換算（供輸入框用）：缺匯率時退回原 TWD 數字，不回 NaN（避免清空欄位）
+    function toDisplayNum(twd) {
+      if (displayCurrency === 'TWD') return twd;
+      const rate = fxRates[displayCurrency];
+      return rate ? twd / rate : twd;
+    }
+    function fromDisplayNum(val) {
+      if (displayCurrency === 'TWD') return val;
+      const rate = fxRates[displayCurrency];
+      return rate ? val * rate : val;
+    }
+
+    // 顯示幣別若失去匯率（如刷新時 FX 抓取失敗），退回 TWD。集中於此供多處呼叫。
+    function healDisplayCurrency() {
+      if (displayCurrency !== 'TWD' && !fxRates[displayCurrency]) displayCurrency = 'TWD';
+    }
+
+    // 將預測參數（canonical）以顯示幣別寫入輸入框，並更新單位標籤。
+    // 只在切幣別/載入時呼叫，不在打字（onConfigChange）時呼叫，避免游標跳動。
+    function syncForecastInputs() {
+      healDisplayCurrency();   // 確保不會用無匯率的幣別寫輸入框/標籤
+      const dec = CURRENCY_DECIMALS[displayCurrency] ?? 2;
+      const principalTWD = principalUSD * (fxRates['USD'] || 0);
+      const setVal = (id, twd) => { const el = document.getElementById(id); if (el) el.value = toDisplayNum(twd).toFixed(dec); };
+      setVal('inputActualPrincipal', principalTWD);
+      setVal('inputTargetReal',      targetRealTWD);
+      setVal('inputMonthlyInvest',   monthlyInvestTWD);
+      document.querySelectorAll('.cur-unit').forEach(el => el.textContent = displayCurrency);
+    }
+
     function populateCurrencyDropdown() {
       const sel = document.getElementById('currencySelect');
       sel.innerHTML = availableCurrencies.map(c =>
@@ -732,6 +773,7 @@
     // 重繪全頁（切幣別用）：總覽 + 投報 + 三個 accordion + 當前股票視圖。
     // 股票用既有 stockViewData 重繪，不重打 Finnhub；bank 重跑時 FX 已快取。
     function renderAll() {
+      syncForecastInputs();
       renderOverview();
       renderInvestmentReturn();
       if (bankState)     renderBankAccordion(bankState.rows, bankState.dataSource, bankState.snapshotDate);
@@ -761,8 +803,7 @@
 
     // ── 總覽 ──
     function renderOverview() {
-      // 自癒：顯示幣別若失去匯率（如刷新時該 feed 失敗），退回 TWD，避免整頁卡在「匯率不可用」
-      if (displayCurrency !== 'TWD' && !fxRates[displayCurrency]) displayCurrency = 'TWD';
+      healDisplayCurrency();   // 後備：避免整頁卡在「匯率不可用」
       const C              = getConfig();
       const years          = C.targetAge - C.currentAge;
       const total          = bankCashTWD + stockTWD + laborTWD;
@@ -819,7 +860,7 @@
       if (!stockCostTWD) return;
 
       const usdToTWD        = fxRates['USD'] || 0;
-      const actualUSD       = parseFloat(document.getElementById('inputActualPrincipal')?.value) || 0;
+      const actualUSD       = principalUSD;   // canonical（USD）
       const actualTWD       = actualUSD * usdToTWD;
       const calcTWD         = stockCostTWD;
       const interestTWD     = calcTWD - actualTWD;
@@ -1340,9 +1381,8 @@
         }, 0);
 
       if (principalRow) {
-        const principalUSD = parseAmount(principalRow['Total Price']);
-        const input = document.getElementById('inputActualPrincipal');
-        if (input) input.value = principalUSD;
+        principalUSD = parseAmount(principalRow['Total Price']);   // 存 canonical
+        syncForecastInputs();   // 依目前顯示幣別寫入輸入框
       }
 
       stockTWD = grandTotal;
