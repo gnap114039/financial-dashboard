@@ -188,6 +188,10 @@
     .stock-detail-row:last-child { border-bottom: none; }
     .stock-detail-row .dl { color: #64748b; }
     .stock-detail-row .dr { color: #94a3b8; font-weight: 500; }
+    /* 損益色需蓋過上面的灰（.dr 後代選擇器優先級較高，故在此提升） */
+    .stock-detail-row .dr.green  { color: #4ade80; }
+    .stock-detail-row .dr.red    { color: #f87171; }
+    .stock-detail-row .dr.yellow { color: #fbbf24; }
 
     /* ── 視圖切換 tabs ── */
     .view-tabs { display: flex; padding: 0.5rem 1.5rem 0; border-bottom: 1px solid #1a2535; }
