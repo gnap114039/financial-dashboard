@@ -70,6 +70,10 @@
     .green  { color: #4ade80; }
     .yellow { color: #fbbf24; }
     .red    { color: #f87171; }
+    /* 損益/狀態色需蓋過 .card .value 與 .forecast-row .fr 的白色（後代選擇器優先級較高） */
+    .card .value.green,  .forecast-row .fr.green  { color: #4ade80; }
+    .card .value.yellow, .forecast-row .fr.yellow { color: #fbbf24; }
+    .card .value.red,    .forecast-row .fr.red    { color: #f87171; }
 
     .progress-wrap   { margin-top: 0.75rem; }
     .progress-track  { background: #0f172a; border-radius: 99px; height: 8px; overflow: hidden; }
