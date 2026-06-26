@@ -1364,10 +1364,13 @@
         cash = { totalCostUSD, twdValue };
       }
 
+      // 已清倉：已實現損益讀 Average（持倉成本價慣例，負值=賺 → 取負號變正=賺）。
+      // 純顯示，不進 grandTotal / stockCostTWD / 總收益。TWD 計價股換算回 USD。
       let totalRealizedUSD = 0;
       const closedItems = closedRows.map(row => {
-        const totalCost   = parseAmount(row['Total Price']);
-        const realizedUSD = -totalCost;
+        const isTWD       = row['Currency']?.trim().toUpperCase() === 'TWD';
+        const rawRealized = -parseAmount(row['Average']);
+        const realizedUSD = isTWD ? rawRealized / usdToTWD : rawRealized;
         totalRealizedUSD += realizedUSD;
         return { ticker: row['Ticker'], realizedUSD };
       });
