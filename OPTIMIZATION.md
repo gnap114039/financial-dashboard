@@ -15,18 +15,18 @@
 
 ---
 
-## 一、極低工本暖身（零風險、立刻見效）
+## 一、極低工本暖身（零風險、立刻見效） ✅ 全數完成（commit 9483679）
 
-- [ ] **README 補 Currency + PRINCIPAL 欄位** — `README.md:55-63`，與 CLAUDE.md/SPEC.md 對齊
-- [ ] **`:focus-visible` 焦點環取代 `outline:none`** — `src/index.html:203`，恢復鍵盤可用性
-- [ ] **`usdToTWD` 除法前 assert > 0** — `src/index.html:1226`，阻止 Infinity 污染 grandTotal
-- [ ] **股票 tab 改用 `data-view` 屬性**（不再比對中文 label） — `src/index.html:974-980`
-- [ ] **Pin Chart.js CDN 版本（+SRI）** — `src/index.html:337`
-- [ ] **加 `prefers-reduced-motion` guard** — `src/index.html:44-45` 等
-- [ ] **回寫快照結果改成顯示而非吞掉**（用 `{updated}` 提示 n 檔已寫回） — `src/index.html:1277-1283`
-- [ ] **後端時區改 `Asia/Taipei`**（或 compose 設 `TZ`） — `api/main.py:56,78,113,141`；前端日期同改本地時間
-- [ ] **Pin 後端依賴 + 移除 Dockerfile `--reload`** — `api/requirements.txt`, `api/Dockerfile:6`
-- [ ] **強化 `backup_data.sh`（fail loudly）** — `set -euo pipefail`、區分空 commit 與真錯、push 失敗回非 0
+- [x] **README 補 Currency + PRINCIPAL 欄位** — `README.md`，與 CLAUDE.md/SPEC.md 對齊
+- [x] **`:focus-visible` 焦點環取代 `outline:none`** — `src/index.html`，恢復鍵盤可用性
+- [x] **`usdToTWD` 除法前 assert > 0** — `src/index.html`，缺匯率時短路成錯誤狀態
+- [x] **股票 tab 改用 `data-view` 屬性**（不再比對中文 label） — `src/index.html`
+- [x] **Pin Chart.js CDN 版本（+SRI）** — `src/index.html`，鎖 4.4.6 + integrity
+- [x] **加 `prefers-reduced-motion` guard** — `src/index.html`
+- [x] **回寫快照結果改成顯示而非吞掉**（log `{updated}` / 失敗警告） — `src/index.html`
+- [x] **後端時區改 `Asia/Taipei`** — `api/main.py` zoneinfo + tzdata、compose `TZ`、前端 `localDate()`
+- [x] **Pin 後端依賴 + 移除 Dockerfile `--reload`** — `api/requirements.txt`, `api/Dockerfile`
+- [x] **強化 `backup_data.sh`（fail loudly）** — `set -euo pipefail`、空 commit 乾淨退出
 
 ## 二、低工本、高影響（本輪核心）
 
