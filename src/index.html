@@ -483,10 +483,6 @@
   <!-- 投資報酬明細 -->
   <div class="section-title">投資報酬明細</div>
   <div class="forecast-card">
-    <div class="forecast-row">
-      <span class="fl">實際投入本金（<span class="cur-unit">TWD</span>）</span>
-      <span class="fr"><input class="forecast-input" id="inputActualPrincipal" value="0" readonly style="opacity:0.6;cursor:default"> <span class="cur-unit">TWD</span></span>
-    </div>
     <div class="forecast-row"><span class="fl">實際投入本金（<span class="cur-unit">TWD</span>）</span><span class="fr"><span id="actualPrincipalTWD">—</span></span></div>
     <div class="forecast-row"><span class="fl">計算投入本金（<span class="cur-unit">TWD</span>）</span><span class="fr"><span id="calcPrincipalTWD">—</span></span></div>
     <div class="forecast-row"><span class="fl">利息 ／ 股息收益</span><span class="fr"><span id="interestIncome">—</span></span></div>
@@ -754,11 +750,9 @@
     function syncForecastInputs() {
       healDisplayCurrency();   // 確保不會用無匯率的幣別寫輸入框/標籤
       const dec = CURRENCY_DECIMALS[displayCurrency] ?? 2;
-      const principalTWD = principalUSD * (fxRates['USD'] || 0);
       const setVal = (id, twd) => { const el = document.getElementById(id); if (el) el.value = toDisplayNum(twd).toFixed(dec); };
-      setVal('inputActualPrincipal', principalTWD);
-      setVal('inputTargetReal',      targetRealTWD);
-      setVal('inputMonthlyInvest',   monthlyInvestTWD);
+      setVal('inputTargetReal',    targetRealTWD);
+      setVal('inputMonthlyInvest', monthlyInvestTWD);
       document.querySelectorAll('.cur-unit').forEach(el => el.textContent = displayCurrency);
     }
 
