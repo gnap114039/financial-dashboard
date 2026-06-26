@@ -795,36 +795,43 @@
     function toggleBank(header)  { header.closest('.bank-item').classList.toggle('open'); }
     function toggleStock(header) { header.closest('.stock-item').classList.toggle('open'); }
 
+    // 解出實質餘額成長到 target 所需月數（年金閉式解）。回傳 0..∞（Infinity = 無法達標）。
+    // FV(m) = current·(1+i)^m + pmt·((1+i)^m − 1)/i，求最小 m 使 FV(m) ≥ target。
+    function monthsToTarget(current, target, i, pmt) {
+      if (current >= target) return 0;
+      if (Math.abs(i) < 1e-9) return pmt > 0 ? Math.ceil((target - current) / pmt) : Infinity;
+      const P = pmt / i;                       // i<0 時 P<0；餘額漸近上限為 pmt/|i|
+      const g = (target + P) / (current + P);  // g=(1+i)^m；g≤0 代表目標超過漸近上限，無法達標
+      if (g <= 0) return Infinity;
+      const m = Math.log(g) / Math.log(1 + i);
+      return (Number.isFinite(m) && m > 0) ? Math.ceil(m) : Infinity;
+    }
+
     // ── 總覽 ──
     function renderOverview() {
       healDisplayCurrency();   // 後備：避免整頁卡在「匯率不可用」
       const C              = getConfig();
       const years          = C.targetAge - C.currentAge;
       const total          = bankCashTWD + stockTWD + laborTWD;
+      // 退休當年的名目目標（僅供顯示），與進度/年齡試算的實質計算分開
       const inflatedTarget = C.targetReal * Math.pow(1 + C.inflation, years);
-      const progress       = Math.min(total / inflatedTarget * 100, 100);
       const realReturn     = (1 + C.annualReturn) / (1 + C.inflation) - 1;
-      const annualInvest   = C.monthlyInvest * 12;
-
       const monthlyRealReturn = Math.pow(1 + realReturn, 1 / 12) - 1;
-      let balance = total;
-      let estMonths = null;
 
-      for (let m = 1; m <= 600; m++) {
-        balance = balance * (1 + monthlyRealReturn) + C.monthlyInvest;
-        if (balance >= C.targetReal) { estMonths = m; break; }
-      }
+      // 進度與退休年齡皆以「實質（今日購買力）」為準，量同一個目標 targetReal（消除進度條與退休年齡的 frame 矛盾）
+      const progress  = C.targetReal > 0 ? Math.min(total / C.targetReal * 100, 100) : 0;
+      const estMonths = monthsToTarget(total, C.targetReal, monthlyRealReturn, C.monthlyInvest);
 
       document.getElementById('totalAssets').textContent     = total ? fmtD(total) : '—';
       document.getElementById('totalAssetsSub').textContent  = displayCurrency;
       document.getElementById('progressPct').textContent     = total ? progress.toFixed(1) + '%' : '—';
       document.getElementById('progressBar').style.width     = progress + '%';
-      document.getElementById('targetLabel').textContent     = '目標 ' + fmtD(inflatedTarget);
+      document.getElementById('targetLabel').textContent     = '目標 ' + fmtD(C.targetReal) + '（今日購買力）';
       document.getElementById('inflatedTarget').textContent  = fmtD(inflatedTarget);
       document.getElementById('inflatedSub').textContent     = `以 ${(C.inflation * 100).toFixed(1)}% 通膨換算 ${years} 年`;
       document.getElementById('forecastInflated').textContent = fmtD(inflatedTarget);
 
-      if (estMonths) {
+      if (Number.isFinite(estMonths) && estMonths <= 600) {
         const estYears    = Math.floor(estMonths / 12);
         const estRemMonth = estMonths % 12;
         const estAge      = C.currentAge + estYears;

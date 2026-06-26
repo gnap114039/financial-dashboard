@@ -34,7 +34,7 @@
 - [x] **集中 `renderAll()`，切幣別整頁重繪** — `src/index.html`（commit fc31795）。重繪 overview+投報+三 accordion+當前股票視圖；股票用 stockViewData 重繪不重打 Finnhub；onConfigChange 維持輕量
 - [ ] **Finnhub 報價平行化（+ AbortController timeout）** — `src/index.html:1238-1274`。N×RTT → ~1×RTT，單檔卡死不再拖垮整個手風琴
 - [ ] **統一三 fetcher 為單一 `fetchFeed()`** — `src/index.html:550-595`，收掉 ~45 行重複
-- [ ] **600 月迴圈改 annuity 閉式解** — `src/index.html:744-751`，O(1) 精確、自然處理「無法達標」
+- [x] **600 月迴圈改 annuity 閉式解** — `src/index.html`（隨退休模型統一一併完成）。`monthsToTarget` 閉式解；1080 組參數 brute-force 與舊迴圈一致
 - [ ] **無股票資料時投報卡仍給合理狀態 + 輸入驗證** — `src/index.html:788-789, 662-665`
 - [ ] **NTD/TWD 統一成單一幣別碼** — `src/index.html:680, 690-691, 831, 887`
 - [ ] **wire `force=true`（手動重抓按鈕）** — `api/main.py` + `src/index.html:553` 等，讓當日 Sheets 更正值可見
@@ -44,13 +44,13 @@
 
 - [x] **三 feed 共用引號 + 數字感知 parser（全走 `parseAmount`）** — `src/index.html`（commit 4e7ddb9）。新增 `splitCSVLine` + `parseCSV`，銀行/勞退改走它 + `parseAmount`，修掉千分位金額腐蝕（問題 #1）。16 項單元測試通過
 - [x] **三套 formatter 統一成幣別感知 `fmtD`** — `src/index.html`（commit fc31795）。主數字全改 fmtD；fmtUSD 保留 USD-native；fmt 僅留明確 TWD 標注的參考列。經 12-agent 對抗式審查（0 真問題）
-- [ ] **退休模型統一一套通膨慣例** — `src/index.html:739-751, 757`。建議全程實質：實質報酬、實質目標、月投入也折現，讓進度條/目標卡/退休年齡量同一個目標
+- [x] **退休模型統一一套通膨慣例** — `src/index.html`（commit 待補）。進度條改實質基準（total/targetReal），與退休年齡試算一致，消除「進度低卻顯示可提早退休」矛盾；inflatedTarget 保留為顯示
 - [ ] **抓回內容做 CSV 健檢，失敗則回退上一份快照** — `api/main.py:43-67`。防 Google HTML 錯誤頁毒化整天 cache
 - [ ] **手風琴/tab 升級為語意元素（button/role/aria）** — `src/index.html:422, 445-451, 908`
 - [ ] **CSS 變數化色盤 + 合併重複 row 樣式** — `src/index.html:8-336`，消除 ~12 個散落 hex、砍 ~40 行重複
 - [ ] **PATCH 區分 auto vs manual，讓 Finnhub 盤中可刷新** — `api/main.py:91`
 - [ ] **加最小 pytest（TestClient）** — `api/main.py`，鎖住 cache/fresh、PATCH、404、history 契約
-- [ ] **獨立 Realized P&L 欄位（改資料模型）** — `src/index.html:1294-1299`，讓平倉會計正確可稽核
+- [x] **已清倉每檔損益可見** — `src/index.html`（commit 482aff2）。改讀 `Average`（負=賺）顯示每檔已實現損益。原「新增獨立欄位」非必要，用既有 Average 達成 visibility 需求即可
 
 ## 四、架構級（僅建議，後續里程碑）
 
