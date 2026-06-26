@@ -5,8 +5,17 @@ import csv
 import io
 import httpx
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Dict
+
+# 以台灣時區計算「今日」，避免容器 UTC 導致午夜後快照日期 off-by-one
+TPE_TZ = ZoneInfo("Asia/Taipei")
+
+
+def today_str() -> str:
+    return datetime.now(TPE_TZ).strftime("%Y-%m-%d")
+
 
 app = FastAPI()
 
@@ -53,7 +62,7 @@ async def _fetch_sheet(url: str) -> str:
 @app.get("/api/stock/refresh", response_class=PlainTextResponse)
 async def refresh_stock(force: bool = False):
     """回傳股票 CSV。今日快照存在時直接回傳；否則從 Google Sheets 抓取並存檔。"""
-    date_str = datetime.now().strftime("%Y-%m-%d")
+    date_str = today_str()
     snapshot = STOCK_DIR / f"stock_{date_str}.csv"
 
     if not force and snapshot.exists():
@@ -75,7 +84,7 @@ async def refresh_stock(force: bool = False):
 @app.patch("/api/stock/snapshot")
 async def patch_stock_snapshot(prices: Dict[str, float] = Body(...)):
     """Finnhub 取得的即時股價寫回今日快照，只更新 Current Price 為 '-' 的列。"""
-    date_str = datetime.now().strftime("%Y-%m-%d")
+    date_str = today_str()
     snapshot = STOCK_DIR / f"stock_{date_str}.csv"
     if not snapshot.exists():
         raise HTTPException(status_code=404, detail="今日快照不存在")
@@ -110,7 +119,7 @@ async def list_stock_history():
 @app.get("/api/bank/refresh", response_class=PlainTextResponse)
 async def refresh_bank(force: bool = False):
     """回傳銀行現金 CSV。今日快照存在時直接回傳；否則從 Google Sheets 抓取並存檔。"""
-    date_str = datetime.now().strftime("%Y-%m-%d")
+    date_str = today_str()
     snapshot = BANK_DIR / f"bank_{date_str}.csv"
 
     if not force and snapshot.exists():
@@ -138,7 +147,7 @@ async def list_bank_history():
 @app.get("/api/pension/refresh", response_class=PlainTextResponse)
 async def refresh_pension(force: bool = False):
     """回傳勞退 CSV。今日快照存在時直接回傳；否則從 Google Sheets 抓取並存檔。"""
-    date_str = datetime.now().strftime("%Y-%m-%d")
+    date_str = today_str()
     snapshot = PENSION_DIR / f"pension_{date_str}.csv"
 
     if not force and snapshot.exists():

@@ -201,6 +201,7 @@
     .view-tab { background: none; border: none; border-bottom: 2px solid transparent; color: #64748b; font-size: 0.78rem; font-weight: 600; font-family: inherit; padding: 0.4rem 0.85rem; cursor: pointer; transition: color 0.15s, border-color 0.15s; margin-bottom: -1px; }
     .view-tab:hover { color: #94a3b8; }
     .view-tab:focus { outline: none; }
+    .view-tab:focus-visible { outline: 2px solid #60a5fa; outline-offset: -2px; border-radius: 4px; }
     .view-tab.active { color: #60a5fa; border-bottom-color: #60a5fa; }
 
     /* ── Strip view ── */
@@ -333,8 +334,19 @@
 
     #authSubmit:hover { background: #2563eb; }
     #authError { font-size: 0.8rem; color: #f87171; margin-top: 0.75rem; min-height: 1rem; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"
+          integrity="sha384-Sse/HDqcypGpyTDpvZOJNnG0TT3feGQUkF9H+mnRvic+LjR+K1NhTt8f51KIQ3v3"
+          crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -443,10 +455,10 @@
       </div>
       <div class="acc-body">
         <div class="view-tabs" id="stockViewTabs">
-          <button class="view-tab active" onclick="switchStockView('list')">清單</button>
-          <button class="view-tab" onclick="switchStockView('strip')">配置</button>
-          <button class="view-tab" onclick="switchStockView('bar')">比較</button>
-          <button class="view-tab" onclick="switchStockView('donut')">圓餅</button>
+          <button class="view-tab active" data-view="list"  onclick="switchStockView('list')">清單</button>
+          <button class="view-tab"        data-view="strip" onclick="switchStockView('strip')">配置</button>
+          <button class="view-tab"        data-view="bar"   onclick="switchStockView('bar')">比較</button>
+          <button class="view-tab"        data-view="donut" onclick="switchStockView('donut')">圓餅</button>
         </div>
         <div class="stock-list" id="stockList"></div>
       </div>
@@ -547,8 +559,14 @@
     const LABOR_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6oDlhxWgtYn3IVCV1-ewP6kMsULRuVJPXiAYLMV_dXVXRbH8VGI7LzM6wtXqXX9EJTxQgFKqb0BlF/pub?gid=889457991&single=true&output=csv';
     const LABOR_CACHE_KEY = 'laborPensionCache';
 
+    // 本地日期 YYYY-MM-DD（避免 toISOString 的 UTC 造成午夜後 off-by-one）
+    function localDate() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
     async function fetchStockData() {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = localDate();
       if (IS_LOCAL) {
         const r = await fetch('http://localhost:8000/api/stock/refresh');
         if (!r.ok) throw new Error('API 回應錯誤');
@@ -560,7 +578,7 @@
     }
 
     async function fetchBankData() {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = localDate();
       if (IS_LOCAL) {
         const r = await fetch('http://localhost:8000/api/bank/refresh');
         if (!r.ok) throw new Error('API 回應錯誤');
@@ -572,7 +590,7 @@
     }
 
     async function fetchLaborData() {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = localDate();
       if (IS_LOCAL) {
         const r = await fetch('http://localhost:8000/api/pension/refresh');
         if (!r.ok) throw new Error('API 回應錯誤');
@@ -974,7 +992,7 @@
     function switchStockView(view) {
       currentStockView = view;
       document.querySelectorAll('#stockViewTabs .view-tab').forEach(btn => {
-        btn.classList.toggle('active', btn.textContent === { list: '清單', strip: '配置', bar: '比較', donut: '圓餅' }[view]);
+        btn.classList.toggle('active', btn.dataset.view === view);
       });
       renderStockView(view);
     }
@@ -1224,6 +1242,7 @@
       if (!ok) { setStatus('stockStatus', '匯率抓取失敗', 'err'); return; }
 
       const usdToTWD   = fxRates['USD'] || 0;
+      if (!usdToTWD) { setStatus('stockStatus', '匯率不可用（USD/TWD 缺失），股票金額無法換算', 'err'); return; }
       const specialTickers = ['cash', 'principal'];
       const cashRow      = rows.find(r => r['Ticker'].toLowerCase() === 'cash');
       const principalRow = rows.find(r => r['Ticker'].toLowerCase() === 'principal');
@@ -1279,7 +1298,10 @@
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(finnhubPrices),
-        }).catch(() => {});
+        })
+          .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+          .then(d => console.info(`快照回寫：${d.updated} 檔股價已寫入今日快照`))
+          .catch(e => console.warn('快照回寫失敗：', e.message));
       }
 
       let cash = null;
@@ -1300,7 +1322,7 @@
 
       stockViewData    = { openStocks, cash, closedItems, totalRealizedUSD, grandTotal, usdToTWD, fetchErrors };
       currentStockView = 'list';
-      document.querySelectorAll('#stockViewTabs .view-tab').forEach((btn, i) => btn.classList.toggle('active', i === 0));
+      document.querySelectorAll('#stockViewTabs .view-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.view === 'list'));
 
       // Σ所有 Total Price（含 cash row、含已清倉，排除 PRINCIPAL）→ 計算投入本金分母
       stockCostTWD = rows

@@ -60,7 +60,9 @@ docker compose down
 | `Total Share` | 持股數，`0` = 已清倉 |
 | `Average` | 每股均價（USD） |
 | `Total Price` | 持倉成本（USD），負值代表已實現獲利 |
-| `Current Price` | 手動填入現價；填 `-` 則由 Finnhub 自動取得 |
+| `Current Price` | 現價，三種來源：填 `-` 由 Finnhub 自動取得（美股）；手動填數字；或由 Google Sheets Apps Script + Yahoo 自動填（上櫃 / LSE 股，如 `6187.TWO`、`IB01.L`） |
+| `Currency` | 選填，填 `TWD` 時前端自動將 `Current Price` 與 `Total Price` 依匯率換算為 USD |
+| `PRINCIPAL` | 特殊列，`Total Price` 填歷史累積投入本金（USD），前端自動讀取，不計入持倉 |
 
 **銀行現金工作表**
 
