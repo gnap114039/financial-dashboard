@@ -56,6 +56,10 @@ async def _fetch_sheet(url: str) -> str:
             resp.raise_for_status()
         except httpx.HTTPError as e:
             raise HTTPException(status_code=502, detail=f"無法抓取 Google Sheets：{e}")
+    # Google 偶爾以 200 回 HTML 錯誤/登入頁；若寫成快照，當天之後都會讀到壞資料
+    content_type = resp.headers.get("content-type", "")
+    if "text/csv" not in content_type:
+        raise HTTPException(status_code=502, detail=f"Google Sheets 回傳非 CSV 內容（{content_type}）")
     return resp.text
 
 

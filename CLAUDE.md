@@ -21,10 +21,25 @@ FastAPI（Docker）
 
 ### 環境偵測
 
-`index.html` 透過 `window.location.hostname` 判斷環境：
+`index.html` 透過 `window.location.hostname` 判斷環境（`IS_LOCAL`），再由 flag `USE_SNAPSHOT_BACKEND` 決定本機資料來源（`USE_BACKEND = IS_LOCAL && USE_SNAPSHOT_BACKEND`）：
 
-- `localhost` / `127.0.0.1` → 走 FastAPI（`localhost:8000`），支援快照
-- 其他（GitHub Pages）→ 直接 fetch Google Sheets 公開 CSV
+- `localhost` / `127.0.0.1` 且 `USE_SNAPSHOT_BACKEND = true` → 走 FastAPI（`localhost:8000`），支援快照與 Finnhub 股價回寫（需 `docker compose up`）
+- `localhost` / `127.0.0.1` 且 `USE_SNAPSHOT_BACKEND = false` → **網頁模式**，與 GitHub Pages 相同直接 fetch Google Sheets，不存快照、不需 Docker（**目前預設**）
+- 其他（GitHub Pages）→ 一律直接 fetch Google Sheets 公開 CSV
+
+密碼閘只看 `IS_LOCAL`（本機兩種模式都免密碼），不受 flag 影響。
+
+### 每日快照（GitHub Actions）
+
+快照不再依賴本機開 Docker：private 備份 repo（`src/data` 本身）的 `.github/workflows/snapshot.yml` 每天 08:30（台北）執行，checkout 公開主 repo 後跑 `api/snapshot.py`：
+
+- 沿用 `main.py` 的 `_refresh_feed` 存三張表（今日快照已存在則跳過，可重複執行），再以 `patch_stock_snapshot` 用 Finnhub 補上持倉的 `-` 現價 → 格式與後端快照完全一致
+- Finnhub key 優先讀 repo secret `FINNHUB_KEY`，未設定時沿用 `src/index.html` 的 key
+- 抓回非 CSV（Google HTML 錯誤頁）會直接失敗，不寫入快照；排程失敗 GitHub 會寄信通知
+- 本機要拿到這些快照：執行 `./backup_data.sh`（先 pull 遠端快照，同日重複時以遠端為準，再推本機快照）
+- 本機手動補跑：`DATA_DIR=src/data python api/snapshot.py`（需 Python 3.10+ 與 `api/requirements.txt`）
+
+快照用途：之後的資產變化統計 / 成長趨勢圖。
 
 ---
 
@@ -36,7 +51,7 @@ financial_dashboard/
 ├── SPEC.md
 ├── README.md
 ├── OPTIMIZATION.md           → 優化待辦清單
-├── backup_data.sh            → 將 src/data 快照備份到獨立 private repo
+├── backup_data.sh            → 同步 src/data 與備份 repo（拉下 Actions 每日快照 + 推本機快照）
 ├── .gitignore
 ├── docker-compose.yml
 ├── .github/
@@ -45,11 +60,13 @@ financial_dashboard/
 ├── api/
 │   ├── Dockerfile
 │   ├── requirements.txt
-│   └── main.py               → FastAPI endpoints
+│   ├── main.py               → FastAPI endpoints
+│   └── snapshot.py           → 每日快照 CLI（不需 FastAPI / Docker，供 Actions 排程呼叫）
 ├── notes/                    → 開發筆記與慣例（自 Claude memory 同步）
 └── src/
     ├── index.html             → 前端主頁面
-    └── data/                  → 每日快照（已加入 .gitignore，不納入版控）
+    └── data/                  → 每日快照（private repo financial_dashboard_csv_backup 的 clone；主 repo 已 .gitignore）
+        ├── .github/workflows/snapshot.yml → 每日 08:30 排程抓快照並 commit
         ├── bank/              → bank_YYYY-MM-DD.csv
         ├── stock/             → stock_YYYY-MM-DD.csv
         └── pension/           → pension_YYYY-MM-DD.csv
@@ -151,6 +168,8 @@ Response header `X-Data-Source: cache | fresh` 標示資料來源。
 - [x] Header GitHub icon 連結至專案頁面
 - [x] 實際投入本金自動從 Google Sheets PRINCIPAL row 讀取（唯讀，不再手動輸入）
 - [x] 勞工退休金 Accordion（雇主提繳 / 個人提繳 / 累積收益，計入總資產）
+- [x] 本機資料來源 flag（`USE_SNAPSHOT_BACKEND`，預設網頁模式，不需 Docker）
+- [x] GitHub Actions 每日快照（private 備份 repo 排程 + `api/snapshot.py`，含 Finnhub 現價、非 CSV 擋下）
 
 ## 待開發
 

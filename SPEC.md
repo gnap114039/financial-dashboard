@@ -59,13 +59,15 @@
 
 ### 3.5 資料快照機制
 
-本機開發環境（localhost）透過 FastAPI 後端每日自動存一份快照：
+本機開發環境（localhost）在快照模式（`src/index.html` 的 `USE_SNAPSHOT_BACKEND = true`）下，透過 FastAPI 後端每日自動存一份快照；設為 `false` 時為網頁模式，與 GitHub Pages 相同直接讀 Google Sheets、不存快照（目前預設）：
 
 - `src/data/stock/stock_YYYY-MM-DD.csv`
 - `src/data/bank/bank_YYYY-MM-DD.csv`
 - `src/data/pension/pension_YYYY-MM-DD.csv`
 
-同一天多次重新整理只覆蓋當日快照，不重複下載。快照資料已加入 `.gitignore`，不納入 Git 版本控制（僅存於本機）。
+同一天多次重新整理只覆蓋當日快照，不重複下載。快照資料已加入主 repo 的 `.gitignore`，存於獨立 private 備份 repo（`src/data` 即其 clone）。
+
+**每日排程快照（不依賴本機）：** private 備份 repo 以 GitHub Actions 每天 08:30（台北）執行 `api/snapshot.py`，抓三張表並以 Finnhub 補上持倉現價後 commit，格式與後端快照一致；抓回非 CSV 內容時失敗且不寫入。本機以 `backup_data.sh` 同步（同日重複以遠端為準）。供之後的資產變化統計使用。
 
 前端渲染時，透過 Finnhub 取得的即時股價會自動回寫今日快照的 `Current Price` 欄位（僅更新值為 `-` 的列，不覆蓋手動填寫的價格）。同日後續刷新直接從快照讀取，無需重複呼叫 Finnhub API。
 
@@ -145,3 +147,4 @@
 | v0.5 | 2026-06-24 | TWD 計價股票（Currency 欄）、修正千分位解析、Apps Script + Yahoo 自動補上櫃/LSE 股價 |
 | v0.6 | 2026-06-26 | 優化批次：共用 CSV parser、匯率失敗外顯、切幣別整頁換算（renderAll）、後端 feed 工廠 + env 化、狀態列移入 Accordion 標題、每股持倉成本與已清倉每檔損益顯示、移除多餘的實際投入本金輸入框 |
 | v0.7 | 2026-06-26 | 退休模型統一通膨慣例：進度條改為實質（今日購買力）基準，與退休年齡試算一致；600 月迴圈改年金閉式解（結果不變、O(1)、正確處理無法達標） |
+| v0.8 | 2026-10-25 | 本機資料來源 flag（預設網頁模式，不需 Docker）；GitHub Actions 每日快照（`api/snapshot.py`，含 Finnhub 現價）；後端擋下非 CSV 回應 |

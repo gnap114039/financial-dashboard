@@ -25,10 +25,21 @@
 
 ### 前置需求
 
-- Docker Desktop
 - VS Code（建議搭配 Live Preview 擴充功能）
+- Docker Desktop（僅快照模式需要）
 
-### 啟動
+### 資料來源模式
+
+`src/index.html` 的 `USE_SNAPSHOT_BACKEND` flag 決定本機的資料來源：
+
+| 值 | 模式 | 說明 |
+|---|---|---|
+| `false`（目前預設） | 網頁模式 | 與 GitHub Pages 相同，直接讀 Google Sheets，不存快照，不需 Docker |
+| `true` | 快照模式 | 走 FastAPI，每日存快照到 `src/data/`，需先啟動 Docker |
+
+網頁模式直接用 Live Preview 開啟 `src/index.html` 即可。以下為快照模式的啟動方式。
+
+### 啟動（快照模式）
 
 ```bash
 # 第一次或修改 api/main.py 後
@@ -40,12 +51,20 @@ docker compose up
 
 啟動後用 VS Code Live Preview 開啟 `src/index.html`，或直接以瀏覽器開啟。
 
-後端 API 運行於 `http://localhost:8000`，前端會自動偵測 localhost 並切換至 FastAPI 模式（支援每日快照）。
+後端 API 運行於 `http://localhost:8000`。`USE_SNAPSHOT_BACKEND = true` 時，前端偵測到 localhost 會切換至 FastAPI 模式（支援每日快照）。
 
 ### 停止
 
 ```bash
 docker compose down
+```
+
+### 每日快照（不需 Docker）
+
+private 備份 repo（`src/data`）的 GitHub Actions 每天 08:30（台北）執行 `api/snapshot.py`，抓三張表並以 Finnhub 補上持倉現價後 commit。本機同步：
+
+```bash
+./backup_data.sh   # 拉下遠端每日快照，並推上本機產生的快照
 ```
 
 ## 資料格式

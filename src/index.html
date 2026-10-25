@@ -527,6 +527,13 @@
 
     const IS_LOCAL = ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
+    // 本機資料來源切換：
+    //   true  → 走 FastAPI（localhost:8000），每日快照 + Finnhub 股價回寫（需 docker compose up）
+    //   false → 網頁模式，與 GitHub Pages 相同直接讀 Google Sheets，不存快照（不需 Docker）
+    // 只影響資料來源；密碼閘仍依 IS_LOCAL 判斷（本機免密碼）。GitHub Pages 上一律為網頁模式。
+    const USE_SNAPSHOT_BACKEND = false;
+    const USE_BACKEND = IS_LOCAL && USE_SNAPSHOT_BACKEND;
+
     // 密碼驗證（僅 GitHub Pages）
     // 如需更換密碼：在瀏覽器 console 執行以下指令取得新 hash，再替換下方 PASSWORD_HASH
     // (async()=>{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('你的密碼'));console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''))})()
@@ -567,7 +574,7 @@
 
     async function fetchStockData() {
       const today = localDate();
-      if (IS_LOCAL) {
+      if (USE_BACKEND) {
         const r = await fetch('http://localhost:8000/api/stock/refresh');
         if (!r.ok) throw new Error('API 回應錯誤');
         return { text: await r.text(), source: r.headers.get('X-Data-Source') || 'fresh', date: r.headers.get('X-Snapshot-Date') || today };
@@ -579,7 +586,7 @@
 
     async function fetchBankData() {
       const today = localDate();
-      if (IS_LOCAL) {
+      if (USE_BACKEND) {
         const r = await fetch('http://localhost:8000/api/bank/refresh');
         if (!r.ok) throw new Error('API 回應錯誤');
         return { text: await r.text(), source: r.headers.get('X-Data-Source') || 'fresh', date: r.headers.get('X-Snapshot-Date') || today };
@@ -591,7 +598,7 @@
 
     async function fetchLaborData() {
       const today = localDate();
-      if (IS_LOCAL) {
+      if (USE_BACKEND) {
         const r = await fetch('http://localhost:8000/api/pension/refresh');
         if (!r.ok) throw new Error('API 回應錯誤');
         return { text: await r.text(), source: r.headers.get('X-Data-Source') || 'fresh', date: r.headers.get('X-Snapshot-Date') || today };
@@ -1359,8 +1366,8 @@
         openStocks.push({ ticker, shares, priceUSD, priceSource, marketValueUSD, twdValue, totalCost, avgCostUSD, origAvgTWD, pnlUSD, pnlPct, isTWD, origPriceTWD, color: STOCK_COLORS[openStocks.length % STOCK_COLORS.length] });
       }
 
-      // 將 Finnhub 抓到的股價寫回今日快照（僅本機）
-      if (IS_LOCAL && Object.keys(finnhubPrices).length > 0) {
+      // 將 Finnhub 抓到的股價寫回今日快照（僅本機快照模式）
+      if (USE_BACKEND && Object.keys(finnhubPrices).length > 0) {
         fetch('http://localhost:8000/api/stock/snapshot', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },

@@ -45,7 +45,7 @@
 - [x] **三 feed 共用引號 + 數字感知 parser（全走 `parseAmount`）** — `src/index.html`（commit 4e7ddb9）。新增 `splitCSVLine` + `parseCSV`，銀行/勞退改走它 + `parseAmount`，修掉千分位金額腐蝕（問題 #1）。16 項單元測試通過
 - [x] **三套 formatter 統一成幣別感知 `fmtD`** — `src/index.html`（commit fc31795）。主數字全改 fmtD；fmtUSD 保留 USD-native；fmt 僅留明確 TWD 標注的參考列。經 12-agent 對抗式審查（0 真問題）
 - [x] **退休模型統一一套通膨慣例** — `src/index.html`（commit 待補）。進度條改實質基準（total/targetReal），與退休年齡試算一致，消除「進度低卻顯示可提早退休」矛盾；inflatedTarget 保留為顯示
-- [ ] **抓回內容做 CSV 健檢，失敗則回退上一份快照** — `api/main.py:43-67`。防 Google HTML 錯誤頁毒化整天 cache
+- [ ] **抓回內容做 CSV 健檢，失敗則回退上一份快照** — `api/main.py:43-67`。防 Google HTML 錯誤頁毒化整天 cache。（健檢已完成：`_fetch_sheet` 非 `text/csv` 即 502、不寫快照；「回退上一份快照」尚未做）
 - [ ] **手風琴/tab 升級為語意元素（button/role/aria）** — `src/index.html:422, 445-451, 908`
 - [ ] **CSS 變數化色盤 + 合併重複 row 樣式** — `src/index.html:8-336`，消除 ~12 個散落 hex、砍 ~40 行重複
 - [ ] **PATCH 區分 auto vs manual，讓 Finnhub 盤中可刷新** — `api/main.py:91`
